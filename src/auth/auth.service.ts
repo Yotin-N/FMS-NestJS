@@ -1,35 +1,64 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { UserService } from '../user/user.service';
-import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
-import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { User, UserDocument } from '../user/schemas/user.schema';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from '../user/entities/user.entity';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
   constructor(
     private userService: UserService,
     private jwtService: JwtService,
-    @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
   ) {}
-
   async validateUser(email: string, password: string): Promise<any> {
     const user = await this.userService.findByEmail(email);
-    if (user && (await bcrypt.compare(password, user.password))) {
-      const result = user.toObject();
-      return {
-        email: result.email,
-        userId: result._id,
-      };
+
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
     }
-    return null;
+
+    // Check if user has a password (should have one if registered normally)
+    if (!user.password) {
+      // ถ้าไม่มี password แต่มี googleId แสดงว่าสร้างผ่าน OAuth
+      if (user.googleId) {
+        throw new UnauthorizedException(
+          'This account was created with Google. Please log in using Google.',
+        );
+      }
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    return {
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    };
   }
 
   login(user: any) {
-    const payload = { email: user.email, sub: user.userId };
+    const payload = {
+      email: user.email,
+      sub: user.userId,
+      role: user.role,
+    };
+
     return {
       accessToken: this.jwtService.sign(payload),
+      user: {
+        id: user.userId,
+        email: user.email,
+        role: user.role,
+      },
     };
   }
 
@@ -38,23 +67,49 @@ export class AuthService {
       throw new Error('Google login failed: No user information received.');
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { email, name, picture, googleId } = req.user;
-    let user = await this.userModel.findOne({ email });
+    let user = await this.userService.findByEmail(email);
 
     if (!user) {
-      user = new this.userModel({
+      // Split name into first and last
+      const nameParts = name.split(' ');
+      const firstName = nameParts[0];
+      const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+
+      // Create new user
+      user = await this.userService.create({
         email,
-        name,
-        picture,
-        googleId,
+        firstName,
+        lastName,
+        // Set a random password that won't be used (OAuth users authenticate through the provider)
+        password: Math.random().toString(36).slice(-12),
       });
-      await user.save();
+
+      // Update additional Google-specific fields
+      user.googleId = googleId;
+      await this.userRepository.save(user);
+    } else if (!user.googleId) {
+      // Update existing user with Google ID if they didn't have one
+      user.googleId = googleId;
+      await this.userRepository.save(user);
     }
 
-    const payload = { email: user.email };
+    const payload = {
+      email: user.email,
+      sub: user.id,
+      role: user.role,
+    };
 
     return {
       accessToken: this.jwtService.sign(payload),
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+      },
     };
   }
 }

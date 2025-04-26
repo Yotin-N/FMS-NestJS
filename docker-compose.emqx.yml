@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+      MYSQL_DATABASE: shrimp_farm
+    ports:
+      - '3306:3306'
+    volumes:
+      - mysql-data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+
+  emqx:
+    image: emqx/emqx:5.1
+    restart: always
+    ports:
+      - '1883:1883' # MQTT port
+      - '8083:8083' # MQTT over WebSocket port
+      - '8084:8084' # MQTT over WSS port
+      - '8883:8883' # MQTT over TLS/SSL port
+      - '18083:18083' # EMQX Dashboard
+    environment:
+      EMQX_NAME: emqx
+      EMQX_DASHBOARD__DEFAULT_USERNAME: admin
+      EMQX_DASHBOARD__DEFAULT_PASSWORD: public
+      EMQX_ALLOW_ANONYMOUS: 'true' # For testing only, set to "false" in production
+      EMQX_ACL_NOMATCH: allow # For testing only, set to "deny" in production
+
+volumes:
+  mysql-data:
+    driver: local

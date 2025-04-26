@@ -10,10 +10,16 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(email: string, password: string): Promise<any> {
-    const user = await this.authService.validateUser(email, password);
-    if (!user) {
-      throw new UnauthorizedException();
+    // eslint-disable-next-line no-useless-catch
+    try {
+      const user = await this.authService.validateUser(email, password);
+      if (!user) {
+        throw new UnauthorizedException('Invalid credentials');
+      }
+      return user;
+    } catch (error) {
+      // ส่งต่อ error จาก validateUser โดยไม่ต้องครอบ error อีกชั้น
+      throw error;
     }
-    return user;
   }
 }

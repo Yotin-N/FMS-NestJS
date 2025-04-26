@@ -1,0 +1,15 @@
+export interface MqttSensorData {
+  value: number;
+  timestamp?: string;
+  serialNumber?: string;
+  type?: string;
+  deviceId?: string;
+  farmId?: string;
+}
+
+export interface MqttTopicData {
+  farmId?: string;
+  deviceId?: string;
+  sensorType?: string;
+  serialNumber?: string;
+}
