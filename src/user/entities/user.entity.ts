@@ -7,7 +7,6 @@ import {
   BeforeInsert,
   BeforeUpdate,
   ManyToMany,
-  JoinTable,
 } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { Farm } from '../../farm/entities/farm.entity';
@@ -44,12 +43,8 @@ export class User {
   })
   role: UserRole;
 
-  @ManyToMany(() => Farm)
-  @JoinTable({
-    name: 'user_farms',
-    joinColumn: { name: 'user_id', referencedColumnName: 'id' },
-    inverseJoinColumn: { name: 'farm_id', referencedColumnName: 'id' },
-  })
+  // Fix: Remove @JoinTable here since it's now on the Farm entity
+  @ManyToMany(() => Farm, (farm) => farm.members)
   farms: Farm[];
 
   @CreateDateColumn()
@@ -76,7 +71,6 @@ export class User {
     }
   }
 
-  // เพิ่มเมธอดสำหรับเปรียบเทียบรหัสผ่าน
   async comparePassword(candidatePassword: string): Promise<boolean> {
     if (!this.password) return false;
     return bcrypt.compare(candidatePassword, this.password);

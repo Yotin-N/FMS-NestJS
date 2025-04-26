@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   OneToMany,
   ManyToMany,
+  JoinTable,
 } from 'typeorm';
 import { Device } from '../../device/entities/device.entity';
 import { User } from '../../user/entities/user.entity';
@@ -22,12 +23,27 @@ export class Farm {
   description: string;
 
   @Column({ nullable: true })
+  location: string;
+
+  @Column({ type: 'float', nullable: true })
+  latitude: number;
+
+  @Column({ type: 'float', nullable: true })
+  longitude: number;
+
+  @Column({ nullable: true })
   ownerId: string;
 
   @OneToMany(() => Device, (device) => device.farm, { cascade: true })
   devices: Device[];
 
-  @ManyToMany(() => User)
+  // Fix: specify the inverse side of the relationship
+  @ManyToMany(() => User, (user) => user.farms)
+  @JoinTable({
+    name: 'user_farms',
+    joinColumn: { name: 'farm_id', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'user_id', referencedColumnName: 'id' },
+  })
   members: User[];
 
   @CreateDateColumn()

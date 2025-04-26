@@ -2,11 +2,12 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Farm } from './entities/farm.entity';
-import { User } from '../user/entities/user.entity';
+// import { User } from '../user/entities/user.entity';
 import { UserService } from '../user/user.service';
 import {
   CreateFarmDto,
@@ -16,6 +17,8 @@ import {
 
 @Injectable()
 export class FarmService {
+  private readonly logger = new Logger(FarmService.name);
+
   constructor(
     @InjectRepository(Farm)
     private readonly farmRepository: Repository<Farm>,
@@ -37,30 +40,40 @@ export class FarmService {
       throw new NotFoundException('User not found');
     }
 
-    // Add farm to user's farms
-    if (!user.farms) {
-      user.farms = [];
-    }
-    user.farms.push(savedFarm);
-    await this.userService.save(user);
+    try {
+      // Add farm to user's farms - use the repository to manage the relationship
+      await this.farmRepository
+        .createQueryBuilder()
+        .relation(Farm, 'members')
+        .of(savedFarm)
+        .add(user);
 
-    return savedFarm;
+      return this.findOne(savedFarm.id);
+    } catch (error) {
+      this.logger.error(`Failed to add farm owner as member: ${error.message}`);
+      // Still return the farm even if adding the member fails
+      return savedFarm;
+    }
   }
 
   async findAll(page = 1, limit = 10): Promise<PaginatedFarmsDto> {
-    const [farms, total] = await this.farmRepository.findAndCount({
-      skip: (page - 1) * limit,
-      take: limit,
-      relations: ['members'],
-    });
+    try {
+      const [farms, total] = await this.farmRepository.findAndCount({
+        skip: (page - 1) * limit,
+        take: limit,
+      });
 
-    return {
-      data: farms,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+      return {
+        data: farms,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      };
+    } catch (error) {
+      this.logger.error(`Error finding all farms: ${error.message}`);
+      throw error;
+    }
   }
 
   async findAllByUser(
@@ -68,47 +81,55 @@ export class FarmService {
     page = 1,
     limit = 10,
   ): Promise<PaginatedFarmsDto> {
-    const user = await this.userService.findById(userId, ['farms']);
+    try {
+      // First check if the user exists
+      const user = await this.userService.findById(userId);
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
 
-    if (!user) {
-      throw new NotFoundException('User not found');
+      // Use a query builder approach for more control
+      const queryBuilder = this.farmRepository
+        .createQueryBuilder('farm')
+        .innerJoin('farm.members', 'member')
+        .where('member.id = :userId', { userId })
+        .skip((page - 1) * limit)
+        .take(limit);
+
+      const [farms, total] = await queryBuilder.getManyAndCount();
+
+      return {
+        data: farms,
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      };
+    } catch (error) {
+      this.logger.error(`Error finding farms by user: ${error.message}`);
+      throw error;
     }
-
-    // If farms relationship hasn't been loaded, load it
-    if (!user.farms) {
-      const userWithFarms = await this.userService.findById(userId, ['farms']);
-      user.farms = userWithFarms.farms;
-    }
-
-    const farmIds = user.farms.map((farm) => farm.id);
-
-    const [farms, total] = await this.farmRepository.findAndCount({
-      where: { id: In(farmIds) },
-      skip: (page - 1) * limit,
-      take: limit,
-      relations: ['members'],
-    });
-
-    return {
-      data: farms,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
   }
 
   async findOne(id: string): Promise<Farm> {
-    const farm = await this.farmRepository.findOne({
-      where: { id },
-      relations: ['members', 'devices'],
-    });
+    try {
+      const farm = await this.farmRepository.findOne({
+        where: { id },
+        relations: ['members', 'devices'],
+      });
 
-    if (!farm) {
-      throw new NotFoundException(`Farm with ID "${id}" not found`);
+      if (!farm) {
+        throw new NotFoundException(`Farm with ID "${id}" not found`);
+      }
+
+      return farm;
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      this.logger.error(`Error finding farm: ${error.message}`);
+      throw error;
     }
-
-    return farm;
   }
 
   async update(
@@ -159,19 +180,19 @@ export class FarmService {
       throw new NotFoundException(`User with ID "${userId}" not found`);
     }
 
-    // Add farm to user's farms
-    if (!user.farms) {
-      user.farms = [];
-    }
+    try {
+      // Add the user to farm members
+      await this.farmRepository
+        .createQueryBuilder()
+        .relation(Farm, 'members')
+        .of(farm)
+        .add(user);
 
-    // Check if user is already a member
-    const isAlreadyMember = user.farms.some((f) => f.id === farmId);
-    if (!isAlreadyMember) {
-      user.farms.push(farm);
-      await this.userService.save(user);
+      return this.findOne(farmId);
+    } catch (error) {
+      this.logger.error(`Error adding member to farm: ${error.message}`);
+      throw error;
     }
-
-    return this.findOne(farmId);
   }
 
   async removeMember(
@@ -193,27 +214,39 @@ export class FarmService {
       throw new ForbiddenException('Cannot remove the farm owner from members');
     }
 
-    const user = await this.userService.findById(userId, ['farms']);
+    const user = await this.userService.findById(userId);
     if (!user) {
       throw new NotFoundException(`User with ID "${userId}" not found`);
     }
 
-    // Remove farm from user's farms
-    if (user.farms) {
-      user.farms = user.farms.filter((f) => f.id !== farmId);
-      await this.userService.save(user);
-    }
+    try {
+      // Remove the relationship
+      await this.farmRepository
+        .createQueryBuilder()
+        .relation(Farm, 'members')
+        .of(farm)
+        .remove(user);
 
-    return this.findOne(farmId);
+      return this.findOne(farmId);
+    } catch (error) {
+      this.logger.error(`Error removing member from farm: ${error.message}`);
+      throw error;
+    }
   }
 
   async isUserMember(farmId: string, userId: string): Promise<boolean> {
-    const user = await this.userService.findById(userId, ['farms']);
+    try {
+      const count = await this.farmRepository
+        .createQueryBuilder('farm')
+        .innerJoin('farm.members', 'member')
+        .where('farm.id = :farmId', { farmId })
+        .andWhere('member.id = :userId', { userId })
+        .getCount();
 
-    if (!user || !user.farms) {
+      return count > 0;
+    } catch (error) {
+      this.logger.error(`Error checking user membership: ${error.message}`);
       return false;
     }
-
-    return user.farms.some((farm) => farm.id === farmId);
   }
 }

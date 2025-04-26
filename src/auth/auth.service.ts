@@ -14,8 +14,10 @@ export class AuthService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {}
+  // Just this method needs fixing
   async validateUser(email: string, password: string): Promise<any> {
-    const user = await this.userService.findByEmail(email);
+    // Add true parameter to retrieve password
+    const user = await this.userService.findByEmail(email, true);
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -23,7 +25,7 @@ export class AuthService {
 
     // Check if user has a password (should have one if registered normally)
     if (!user.password) {
-      // ถ้าไม่มี password แต่มี googleId แสดงว่าสร้างผ่าน OAuth
+      // If no password but has googleId, it was created with OAuth
       if (user.googleId) {
         throw new UnauthorizedException(
           'This account was created with Google. Please log in using Google.',
