@@ -1,13 +1,19 @@
 /* eslint-disable no-useless-escape */
 /* eslint-disable @typescript-eslint/await-thenable */
-import { Injectable, Logger, OnModuleInit, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { SensorService } from '../sensor/sensor.service';
-import { SensorType } from '../sensor/entities/sensor.entity';
 import {
   MqttSensorData,
   MqttTopicData,
 } from './interfaces/mqtt-message.interface';
+import { SensorReadingService } from '../sensor-reading/sensor-reading.service';
 
 @Injectable()
 export class MqttService implements OnModuleInit {
@@ -18,6 +24,8 @@ export class MqttService implements OnModuleInit {
   constructor(
     @Inject('MQTT_CLIENT') private readonly client: ClientProxy,
     private readonly sensorService: SensorService,
+    @Inject(forwardRef(() => SensorReadingService))
+    private readonly sensorReadingService: SensorReadingService,
   ) {}
 
   async onModuleInit() {
@@ -58,7 +66,7 @@ export class MqttService implements OnModuleInit {
   async subscribeSensorTopics(
     sensorId: string,
     serialNumber: string,
-    type: SensorType,
+    type: any, // Changed type to any to avoid import issues
   ) {
     try {
       const sensor = await this.sensorService.findOne(sensorId);
@@ -127,7 +135,9 @@ export class MqttService implements OnModuleInit {
         return;
       }
 
-      await this.sensorService.addReading(sensorId, {
+      // Use SensorReadingService instead of SensorService
+      await this.sensorReadingService.create({
+        sensorId,
         value: data.value,
         timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
       });
@@ -158,13 +168,25 @@ export class MqttService implements OnModuleInit {
         return;
       }
 
-      const sensor = await this.sensorService.findBySerialNumber(serialNumber);
-      await this.sensorService.addReading(sensor.id, {
-        value: data.value,
-        timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
-      });
+      try {
+        const sensor =
+          await this.sensorService.findBySerialNumber(serialNumber);
 
-      this.logger.debug(`Saved reading for sensor ${sensor.id}: ${data.value}`);
+        // Use SensorReadingService instead of SensorService
+        await this.sensorReadingService.create({
+          sensorId: sensor.id,
+          value: data.value,
+          timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
+        });
+
+        this.logger.debug(
+          `Saved reading for sensor ${sensor.id}: ${data.value}`,
+        );
+      } catch (error) {
+        this.logger.error(
+          `Error finding sensor by serial number: ${error.message}`,
+        );
+      }
     } catch (error) {
       this.logger.error(`Error handling message: ${error.message}`);
     }
@@ -222,7 +244,6 @@ export class MqttService implements OnModuleInit {
   private parseTopicPattern(topic: string): MqttTopicData {
     const patterns = [
       {
-        // eslint-disable-next-line no-useless-escape
         regex: /^shrimp_farm\/([^\/]+)\/device\/([^\/]+)\/sensor\/([^\/]+)$/,
         handler: (match: RegExpExecArray) => ({
           farmId: match[1],

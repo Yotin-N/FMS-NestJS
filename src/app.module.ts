@@ -6,10 +6,10 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { FarmModule } from './farm/farm.module';
-import { MqttModule } from './mqtt/mqtt.module';
-import { SensorReadingModule } from './sensor-reading/sensor-reading.module';
-import { SensorModule } from './sensor/sensor.module';
 import { DeviceModule } from './device/device.module';
+import { SensorModule } from './sensor/sensor.module';
+import { SensorReadingModule } from './sensor-reading/sensor-reading.module';
+import { MqttModule } from './mqtt/mqtt.module';
 
 @Module({
   imports: [
@@ -37,8 +37,8 @@ import { DeviceModule } from './device/device.module';
     FarmModule,
     DeviceModule,
     SensorModule,
-    MqttModule,
     SensorReadingModule,
+    MqttModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -69,8 +69,9 @@ async function bootstrap() {
         filter: true,
         showExtensions: true,
         showCommonExtensions: true,
-        defaultModelsExpandDepth: 3,
-        defaultModelExpandDepth: 3,
+
+        defaultModelsExpandDepth: -1,
+        defaultModelExpandDepth: -1,
       },
     });
 

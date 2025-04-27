@@ -2,11 +2,12 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Sensor } from './entities/sensor.entity';
-import { SensorReading } from '../sensor-reading/entities/sensor-reading.entity';
 import { DeviceService } from '../device/device.service';
 import { FarmService } from '../farm/farm.service';
 import {
@@ -14,21 +15,21 @@ import {
   UpdateSensorDto,
   PaginatedSensorsDto,
   SensorReadingDto,
-  PaginatedSensorReadingsDto,
 } from './dto/sensor.dto';
 import { UserRole } from '../user/entities/user.entity';
 import { UserService } from '../user/user.service';
+import { SensorReadingService } from '../sensor-reading/sensor-reading.service';
 
 @Injectable()
 export class SensorService {
   constructor(
     @InjectRepository(Sensor)
     private readonly sensorRepository: Repository<Sensor>,
-    @InjectRepository(SensorReading)
-    private readonly sensorReadingRepository: Repository<SensorReading>,
     private readonly deviceService: DeviceService,
     private readonly farmService: FarmService,
     private readonly userService: UserService,
+    @Inject(forwardRef(() => SensorReadingService))
+    private readonly sensorReadingService: SensorReadingService,
   ) {}
 
   async create(
@@ -61,6 +62,41 @@ export class SensorService {
 
     const sensor = this.sensorRepository.create(createSensorDto);
     return this.sensorRepository.save(sensor);
+  }
+
+  // Updated method to use SensorReadingService
+  async addReading(
+    sensorId: string,
+    readingDto: SensorReadingDto,
+  ): Promise<any> {
+    // Verify the sensor exists
+    await this.findOne(sensorId);
+
+    return this.sensorReadingService.create({
+      sensorId,
+      value: readingDto.value,
+      timestamp: readingDto.timestamp,
+    });
+  }
+
+  // Updated method to use SensorReadingService
+  async getReadings(
+    sensorId: string,
+    startDate?: Date,
+    endDate?: Date,
+    page = 1,
+    limit = 100,
+  ): Promise<any> {
+    // Verify the sensor exists
+    await this.findOne(sensorId);
+
+    return this.sensorReadingService.findBySensor(
+      sensorId,
+      startDate,
+      endDate,
+      page,
+      limit,
+    );
   }
 
   async findAll(page = 1, limit = 10): Promise<PaginatedSensorsDto> {
@@ -187,58 +223,6 @@ export class SensorService {
     }
 
     await this.sensorRepository.remove(sensor);
-  }
-
-  // Sensor readings methods
-  async addReading(
-    sensorId: string,
-    readingDto: SensorReadingDto,
-  ): Promise<SensorReading> {
-    const sensor = await this.findOne(sensorId);
-
-    const reading = this.sensorReadingRepository.create({
-      ...readingDto,
-      sensorId: sensor.id,
-    });
-
-    return this.sensorReadingRepository.save(reading);
-  }
-
-  async getReadings(
-    sensorId: string,
-    startDate?: Date,
-    endDate?: Date,
-    page = 1,
-    limit = 100,
-  ): Promise<PaginatedSensorReadingsDto> {
-    // Verify the sensor exists
-    await this.findOne(sensorId);
-
-    // Build query conditions
-    const where: any = { sensorId };
-
-    if (startDate && endDate) {
-      where.timestamp = Between(startDate, endDate);
-    } else if (startDate) {
-      where.timestamp = Between(startDate, new Date());
-    } else if (endDate) {
-      where.timestamp = Between(new Date(0), endDate);
-    }
-
-    const [readings, total] = await this.sensorReadingRepository.findAndCount({
-      where,
-      skip: (page - 1) * limit,
-      take: limit,
-      order: { timestamp: 'DESC' },
-    });
-
-    return {
-      data: readings,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
   }
 
   // Helper method to check if user has admin role

@@ -1,4 +1,4 @@
-import { Controller, Logger } from '@nestjs/common';
+import { Controller, Logger, Inject, forwardRef } from '@nestjs/common';
 import {
   MessagePattern,
   Payload,
@@ -14,6 +14,7 @@ export class MqttController {
 
   constructor(
     private readonly mqttService: MqttService,
+    @Inject(forwardRef(() => SensorService))
     private readonly sensorService: SensorService,
   ) {}
 

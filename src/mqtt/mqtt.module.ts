@@ -1,10 +1,11 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MqttService } from './mqtt.service';
 import { MqttController } from './mqtt.controller';
 import { SensorModule } from '../sensor/sensor.module';
 import { DeviceModule } from '../device/device.module';
+import { SensorReadingModule } from '../sensor-reading/sensor-reading.module';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -59,6 +60,7 @@ import * as path from 'path';
     ]),
     SensorModule,
     DeviceModule,
+    forwardRef(() => SensorReadingModule), // Use forwardRef to avoid circular dependency
   ],
   controllers: [MqttController],
   providers: [MqttService],
