@@ -247,6 +247,7 @@ export class SensorService {
       const user = await this.userService.findById(userId);
       return user && user.role === UserRole.ADMIN;
     } catch (error) {
+      console.error('Error checking user role:', error);
       return false;
     }
   }

@@ -14,6 +14,7 @@ import { SensorType } from '../sensor/entities/sensor.entity';
 export class MqttService implements OnModuleInit {
   private readonly logger = new Logger(MqttService.name);
   private readonly activeTopics = new Set<string>();
+  private readonly topicToSensorMap = new Map<string, string>();
 
   constructor(
     @Inject('MQTT_CLIENT') private readonly client: ClientProxy,
@@ -76,9 +77,6 @@ export class MqttService implements OnModuleInit {
 
         // Type-based grouping
         `sensors/${type.toLowerCase()}/${serialNumber}`,
-
-        // Wildcard topic for testing - be careful with this in production!
-        // `shrimp_farm/${farmId}/+/+`
       ];
 
       for (const topic of topics) {
@@ -98,34 +96,37 @@ export class MqttService implements OnModuleInit {
 
   private async subscribeTopic(topic: string, sensorId: string) {
     try {
+      // Use the established pattern in your codebase
       await this.client.emit('mqtt_subscribe', { topic });
 
-      // Assuming you have an MQTT client instance for subscribing to topics
-      const mqttClient = await this.client.connect();
-      mqttClient.on(
-        'message',
-        async (receivedTopic: string, message: Buffer) => {
-          if (receivedTopic === topic) {
-            await this.handleMessage(topic, message.toString(), sensorId);
-          }
-        },
-      );
+      // Store the sensor ID mapping for this topic
+      this.topicToSensorMap.set(topic, sensorId);
 
-      mqttClient.subscribe(topic, (err) => {
-        if (err) {
-          this.logger.error(
-            `Error subscribing to topic ${topic}: ${err.message}`,
-          );
-        } else {
-          this.logger.log(`Successfully subscribed to topic: ${topic}`);
-        }
-      });
-
-      this.logger.log(`Subscribed to topic: ${topic}`);
+      this.logger.log(`Successfully subscribed to topic: ${topic}`);
     } catch (error) {
       this.logger.error(
         `Failed to subscribe to topic ${topic}: ${error.message}`,
       );
+    }
+  }
+
+  /**
+   * Process incoming MQTT messages from controller
+   */
+  async processMessage(topic: string, message: any) {
+    try {
+      // Get the sensorId from our mapping
+      const sensorId = this.topicToSensorMap.get(topic);
+
+      if (sensorId) {
+        // Process with the known sensorId
+        await this.handleMessage(topic, message, sensorId);
+      } else {
+        // Try to determine the sensor from the message or topic
+        await this.handleMessage(topic, message);
+      }
+    } catch (error) {
+      this.logger.error(`Error processing MQTT message: ${error.message}`);
     }
   }
 
@@ -286,6 +287,7 @@ export class MqttService implements OnModuleInit {
     try {
       await this.client.emit('mqtt_unsubscribe', { topic });
       this.activeTopics.delete(topic);
+      this.topicToSensorMap.delete(topic);
       this.logger.log(`Unsubscribed from topic: ${topic}`);
     } catch (error) {
       this.logger.error(

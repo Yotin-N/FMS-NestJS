@@ -1,5 +1,6 @@
 import { Controller, Logger } from '@nestjs/common';
-import { MessagePattern, Payload } from '@nestjs/microservices';
+import { MessagePattern, Payload, Ctx } from '@nestjs/microservices';
+import { MqttContext } from '@nestjs/microservices/ctx-host/mqtt.context';
 import { SensorService } from '../sensor/sensor.service';
 import { MqttService } from './mqtt.service';
 import { MqttSensorData } from './interfaces/mqtt-message.interface';
@@ -15,26 +16,28 @@ export class MqttController {
 
   // Define message patterns for different MQTT topics
   @MessagePattern('shrimp_farm/+/device/+/sensor/+')
-  async handleFarmDeviceSensor(@Payload() data: MqttSensorData) {
+  async handleFarmDeviceSensor(
+    @Payload() data: any,
+    @Ctx() context: MqttContext,
+  ) {
+    const topic = context.getTopic();
     this.logger.debug(
-      `Received hierarchical shrimp_farm message: ${JSON.stringify(data)}`,
+      `Received hierarchical shrimp_farm message on topic ${topic}`,
     );
-    // The actual processing happens in the MqttService through subscriptions
+    await this.mqttService.processMessage(topic, data);
   }
 
   @MessagePattern('sensor/+')
-  async handleSensor(@Payload() data: MqttSensorData) {
-    this.logger.debug(
-      `Received direct sensor message: ${JSON.stringify(data)}`,
-    );
-    // The actual processing happens in the MqttService through subscriptions
+  async handleSensor(@Payload() data: any, @Ctx() context: MqttContext) {
+    const topic = context.getTopic();
+    this.logger.debug(`Received direct sensor message on topic ${topic}`);
+    await this.mqttService.processMessage(topic, data);
   }
 
   @MessagePattern('sensors/+/+')
-  async handleTypeSensor(@Payload() data: MqttSensorData) {
-    this.logger.debug(
-      `Received type-based sensor message: ${JSON.stringify(data)}`,
-    );
-    // The actual processing happens in the MqttService through subscriptions
+  async handleTypeSensor(@Payload() data: any, @Ctx() context: MqttContext) {
+    const topic = context.getTopic();
+    this.logger.debug(`Received type-based sensor message on topic ${topic}`);
+    await this.mqttService.processMessage(topic, data);
   }
 }

@@ -7,7 +7,6 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
-  Index,
 } from 'typeorm';
 import { Device } from '../../device/entities/device.entity';
 import { SensorReading } from '../../sensor-reading/entities/sensor-reading.entity';

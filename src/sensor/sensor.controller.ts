@@ -180,6 +180,7 @@ export class SensorController {
       const user = await this.farmService['userService'].findById(userId);
       return user && user.role === UserRole.ADMIN;
     } catch (error) {
+      console.error('Error checking user role:', error);
       return false;
     }
   }
