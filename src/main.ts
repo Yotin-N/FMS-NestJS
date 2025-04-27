@@ -40,16 +40,41 @@ async function bootstrap() {
     }),
   );
 
-  // API documentation with Swagger
+  // API documentation with Swagger - IMPROVED CONFIGURATION
   if (configService.get<string>('NODE_ENV') !== 'production') {
     const options = new DocumentBuilder()
       .setTitle('Shrimp Farm Management API')
       .setDescription('The API for managing shrimp farms, devices, and sensors')
       .setVersion('1.0')
-      .addBearerAuth()
+      .addBearerAuth(
+        {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          name: 'Authorization',
+          description: 'Enter JWT token (without Bearer prefix)',
+          in: 'header',
+        },
+        'access-token', // This key identifies the security scheme
+      )
       .build();
+
     const document = SwaggerModule.createDocument(app, options);
-    SwaggerModule.setup('api', app, document);
+
+    // Configure Swagger UI
+    SwaggerModule.setup('api', app, document, {
+      swaggerOptions: {
+        persistAuthorization: true,
+        docExpansion: 'none',
+        filter: true,
+        showExtensions: true,
+        showCommonExtensions: true,
+        defaultModelsExpandDepth: 3,
+        defaultModelExpandDepth: 3,
+      },
+    });
+
+    console.log('Swagger documentation available at /api');
   }
 
   // Start MQTT microservice

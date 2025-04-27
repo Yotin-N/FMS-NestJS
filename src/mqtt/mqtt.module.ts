@@ -36,6 +36,10 @@ import * as path from 'path';
               ),
               connectTimeout: 5000,
               reconnectPeriod: 1000,
+              // Add these options to ensure proper subscription behavior
+              queueQoSZero: false, // Don't queue QoS 0 messages if client offline
+              reschedulePings: true, // Reschedule ping timer when connection established
+              keepalive: 60, // Keep connection alive (in seconds)
             },
           };
 

@@ -1,14 +1,13 @@
 /* eslint-disable no-useless-escape */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/await-thenable */
 import { Injectable, Logger, OnModuleInit, Inject } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { SensorService } from '../sensor/sensor.service';
+import { SensorType } from '../sensor/entities/sensor.entity';
 import {
   MqttSensorData,
   MqttTopicData,
 } from './interfaces/mqtt-message.interface';
-import { SensorType } from '../sensor/entities/sensor.entity';
 
 @Injectable()
 export class MqttService implements OnModuleInit {
@@ -25,21 +24,24 @@ export class MqttService implements OnModuleInit {
     try {
       await this.client.connect();
       this.logger.log('Connected to MQTT broker');
+
+      // Subscribe to general patterns
+      await this.client.emit('mqtt_subscribe', { topic: 'sensor/+' });
+      await this.client.emit('mqtt_subscribe', { topic: 'sensors/+/+' });
+      await this.client.emit('mqtt_subscribe', {
+        topic: 'shrimp_farm/+/device/+/sensor/+',
+      });
+
+      this.logger.log('Subscribed to general MQTT patterns');
       await this.subscribeToAllSensors();
     } catch (error) {
-      this.logger.error(`Failed to connect to MQTT broker: ${error.message}`);
+      this.logger.error(`MQTT initialization failed: ${error.message}`);
     }
   }
 
-  /**
-   * Subscribe to all sensors in the database
-   */
   async subscribeToAllSensors() {
     try {
-      // Fetch all sensors from database - you might want to paginate if there are many
       const sensors = await this.sensorService.findAll(1, 1000);
-
-      // Subscribe to each sensor's topic patterns
       for (const sensor of sensors.data) {
         await this.subscribeSensorTopics(
           sensor.id,
@@ -47,35 +49,25 @@ export class MqttService implements OnModuleInit {
           sensor.type,
         );
       }
-
       this.logger.log(`Subscribed to ${sensors.data.length} sensors`);
     } catch (error) {
       this.logger.error(`Failed to subscribe to sensors: ${error.message}`);
     }
   }
-  /**
-   * Subscribe to new sensor topics when a sensor is added
-   */
+
   async subscribeSensorTopics(
     sensorId: string,
     serialNumber: string,
     type: SensorType,
   ) {
     try {
-      // Get device and farm info
       const sensor = await this.sensorService.findOne(sensorId);
       const deviceId = sensor.deviceId;
       const farmId = sensor.device.farm.id;
 
-      // EMQX recommended topic structure for IoT devices
       const topics = [
-        // Standard hierarchical structure (recommended)
         `shrimp_farm/${farmId}/device/${deviceId}/sensor/${type.toLowerCase()}`,
-
-        // Direct sensor identification
         `sensor/${serialNumber}`,
-
-        // Type-based grouping
         `sensors/${type.toLowerCase()}/${serialNumber}`,
       ];
 
@@ -83,10 +75,9 @@ export class MqttService implements OnModuleInit {
         if (!this.activeTopics.has(topic)) {
           await this.subscribeTopic(topic, sensorId);
           this.activeTopics.add(topic);
+          this.logger.log(`Subscribed to topic: ${topic}`);
         }
       }
-
-      this.logger.log(`Subscribed to topics for sensor ${serialNumber}`);
     } catch (error) {
       this.logger.error(
         `Failed to subscribe to sensor ${sensorId}: ${error.message}`,
@@ -96,13 +87,9 @@ export class MqttService implements OnModuleInit {
 
   private async subscribeTopic(topic: string, sensorId: string) {
     try {
-      // Use the established pattern in your codebase
       await this.client.emit('mqtt_subscribe', { topic });
-
-      // Store the sensor ID mapping for this topic
       this.topicToSensorMap.set(topic, sensorId);
-
-      this.logger.log(`Successfully subscribed to topic: ${topic}`);
+      this.logger.log(`Subscribed to topic: ${topic}`);
     } catch (error) {
       this.logger.error(
         `Failed to subscribe to topic ${topic}: ${error.message}`,
@@ -110,179 +97,164 @@ export class MqttService implements OnModuleInit {
     }
   }
 
-  /**
-   * Process incoming MQTT messages from controller
-   */
   async processMessage(topic: string, message: any) {
     try {
-      // Get the sensorId from our mapping
-      const sensorId = this.topicToSensorMap.get(topic);
+      this.logger.debug(`Processing message from topic: ${topic}`);
 
+      // Try to get sensorId from direct topic mapping first
+      const sensorId = this.topicToSensorMap.get(topic);
       if (sensorId) {
-        // Process with the known sensorId
-        await this.handleMessage(topic, message, sensorId);
-      } else {
-        // Try to determine the sensor from the message or topic
-        await this.handleMessage(topic, message);
+        await this.handleMessageWithSensor(topic, message, sensorId);
+        return;
       }
+
+      // Fallback to message parsing if no direct mapping
+      await this.handleMessage(topic, message);
     } catch (error) {
       this.logger.error(`Error processing MQTT message: ${error.message}`);
     }
   }
 
-  /**
-   * Handle incoming MQTT messages
-   */
-  private async handleMessage(topic: string, message: any, sensorId?: string) {
+  private async handleMessageWithSensor(
+    topic: string,
+    message: any,
+    sensorId: string,
+  ) {
     try {
-      this.logger.debug(
-        `Received message on topic ${topic}: ${JSON.stringify(message)}`,
+      const data = this.parseMessage(message);
+      if (!data) {
+        this.logger.warn(`Invalid message format for sensor ${sensorId}`);
+        return;
+      }
+
+      await this.sensorService.addReading(sensorId, {
+        value: data.value,
+        timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
+      });
+
+      this.logger.debug(`Saved reading for sensor ${sensorId}: ${data.value}`);
+    } catch (error) {
+      this.logger.error(
+        `Error handling message for sensor ${sensorId}: ${error.message}`,
       );
+    }
+  }
 
-      // Parse the topic to extract metadata if available
+  private async handleMessage(topic: string, message: any) {
+    try {
+      const data = this.parseMessage(message);
+      if (!data) {
+        this.logger.warn(`Invalid message format for topic ${topic}`);
+        return;
+      }
+
       const topicData = this.parseTopicPattern(topic);
+      const serialNumber = data.serialNumber || topicData.serialNumber;
 
-      // Parse the message (could be string or buffer)
-      let data: MqttSensorData;
+      if (!serialNumber) {
+        this.logger.warn(
+          `Cannot determine sensor from message or topic: ${topic}`,
+        );
+        return;
+      }
+
+      const sensor = await this.sensorService.findBySerialNumber(serialNumber);
+      await this.sensorService.addReading(sensor.id, {
+        value: data.value,
+        timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
+      });
+
+      this.logger.debug(`Saved reading for sensor ${sensor.id}: ${data.value}`);
+    } catch (error) {
+      this.logger.error(`Error handling message: ${error.message}`);
+    }
+  }
+
+  private parseMessage(message: any): MqttSensorData | null {
+    try {
+      let parsed: any;
+
+      if (Buffer.isBuffer(message)) {
+        message = message.toString();
+      }
 
       if (typeof message === 'string') {
         try {
-          data = JSON.parse(message);
-        } catch (e) {
-          // If not JSON, try to parse as a simple numeric value
-          const value = parseFloat(message);
-          if (!isNaN(value)) {
-            data = { value };
-          } else {
-            throw new Error(
-              `Could not parse message as JSON or number: ${message}`,
-            );
+          parsed = JSON.parse(message);
+        } catch {
+          // Try to parse as plain number
+          const numValue = Number(message);
+          if (!isNaN(numValue)) {
+            return { value: numValue };
           }
-        }
-      } else if (Buffer.isBuffer(message)) {
-        try {
-          data = JSON.parse(message.toString());
-        } catch (e) {
-          // If not JSON, try to parse as a simple numeric value
-          const value = parseFloat(message.toString());
-          if (!isNaN(value)) {
-            data = { value };
-          } else {
-            throw new Error(`Could not parse buffer message as JSON or number`);
-          }
+          return null;
         }
       } else if (typeof message === 'object') {
-        data = message;
+        parsed = message;
       } else {
-        throw new Error(`Unsupported message format: ${typeof message}`);
+        return null;
       }
 
-      if (data && typeof data.value === 'number') {
-        // Determine the sensor to use
-        let targetSensorId = sensorId;
-
-        // If we don't have a sensor ID from the subscription, try to find it
-        if (!targetSensorId) {
-          if (data.serialNumber) {
-            // Find sensor by serial number
-            const sensor = await this.sensorService.findBySerialNumber(
-              data.serialNumber,
-            );
-            targetSensorId = sensor.id;
-          } else if (topicData.serialNumber) {
-            // Find sensor by serial number from topic
-            const sensor = await this.sensorService.findBySerialNumber(
-              topicData.serialNumber,
-            );
-            targetSensorId = sensor.id;
-          } else if (topicData.deviceId && topicData.sensorType) {
-            // Find sensor by device ID and type
-            // Would need additional methods in SensorService to support this lookup
-            this.logger.warn(
-              `Topic-based sensor lookup by device and type not implemented`,
-            );
-            return;
-          }
-        }
-
-        if (!targetSensorId) {
-          this.logger.warn(
-            `Could not determine sensor ID for message: ${JSON.stringify(data)}`,
-          );
-          return;
-        }
-
-        // Save the sensor reading
-        await this.sensorService.addReading(targetSensorId, {
-          value: data.value,
-          timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
-        });
-
-        this.logger.debug(
-          `Saved reading for sensor ${targetSensorId}: ${data.value}`,
-        );
-      } else {
-        this.logger.warn(
-          `Invalid sensor data format, missing value: ${JSON.stringify(data)}`,
-        );
+      // Validate required value field
+      if (parsed.value === undefined || parsed.value === null) {
+        return null;
       }
+
+      const numValue = Number(parsed.value);
+      if (isNaN(numValue)) {
+        return null;
+      }
+
+      return {
+        value: numValue,
+        timestamp: parsed.timestamp,
+        serialNumber: parsed.serialNumber,
+        type: parsed.type,
+        deviceId: parsed.deviceId,
+        farmId: parsed.farmId,
+      };
     } catch (error) {
-      this.logger.error(`Error handling MQTT message: ${error.message}`);
+      this.logger.error(`Message parsing error: ${error.message}`);
+      return null;
     }
   }
 
-  /**
-   * Parse the topic string to extract metadata
-   */
   private parseTopicPattern(topic: string): MqttTopicData {
-    const result: MqttTopicData = {};
+    const patterns = [
+      {
+        // eslint-disable-next-line no-useless-escape
+        regex: /^shrimp_farm\/([^\/]+)\/device\/([^\/]+)\/sensor\/([^\/]+)$/,
+        handler: (match: RegExpExecArray) => ({
+          farmId: match[1],
+          deviceId: match[2],
+          sensorType: match[3],
+        }),
+      },
+      {
+        regex: /^sensor\/([^\/]+)$/,
+        handler: (match: RegExpExecArray) => ({
+          serialNumber: match[1],
+        }),
+      },
+      {
+        regex: /^sensors\/([^\/]+)\/([^\/]+)$/,
+        handler: (match: RegExpExecArray) => ({
+          sensorType: match[1],
+          serialNumber: match[2],
+        }),
+      },
+    ];
 
-    // Pattern: farm/{farmId}/device/{deviceId}/sensor/{sensorType}
-    const farmDeviceSensorPattern =
-      /^farm\/([^\/]+)\/device\/([^\/]+)\/sensor\/([^\/]+)$/;
-    const farmMatch = farmDeviceSensorPattern.exec(topic);
-
-    if (farmMatch) {
-      result.farmId = farmMatch[1];
-      result.deviceId = farmMatch[2];
-      result.sensorType = farmMatch[3];
-      return result;
+    for (const pattern of patterns) {
+      const match = pattern.regex.exec(topic);
+      if (match) {
+        return pattern.handler(match);
+      }
     }
 
-    // Pattern: sensor/{serialNumber}
-    const sensorPattern = /^sensor\/([^\/]+)$/;
-    const sensorMatch = sensorPattern.exec(topic);
-
-    if (sensorMatch) {
-      result.serialNumber = sensorMatch[1];
-      return result;
-    }
-
-    // Pattern: sensors/{serialNumber}
-    const sensorsPattern = /^sensors\/([^\/]+)$/;
-    const sensorsMatch = sensorsPattern.exec(topic);
-
-    if (sensorsMatch) {
-      result.serialNumber = sensorsMatch[1];
-      return result;
-    }
-
-    // Pattern: {sensorType}/{serialNumber}
-    const typePattern = /^([^\/]+)\/([^\/]+)$/;
-    const typeMatch = typePattern.exec(topic);
-
-    if (typeMatch) {
-      result.sensorType = typeMatch[1];
-      result.serialNumber = typeMatch[2];
-      return result;
-    }
-
-    return result;
+    return {};
   }
 
-  /**
-   * Unsubscribe from a topic
-   */
   async unsubscribeTopic(topic: string) {
     try {
       await this.client.emit('mqtt_unsubscribe', { topic });

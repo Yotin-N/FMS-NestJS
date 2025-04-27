@@ -1,9 +1,12 @@
 import { Controller, Logger } from '@nestjs/common';
-import { MessagePattern, Payload, Ctx } from '@nestjs/microservices';
-import { MqttContext } from '@nestjs/microservices/ctx-host/mqtt.context';
+import {
+  MessagePattern,
+  Payload,
+  Ctx,
+  MqttContext,
+} from '@nestjs/microservices';
 import { SensorService } from '../sensor/sensor.service';
 import { MqttService } from './mqtt.service';
-import { MqttSensorData } from './interfaces/mqtt-message.interface';
 
 @Controller()
 export class MqttController {
@@ -31,6 +34,7 @@ export class MqttController {
   async handleSensor(@Payload() data: any, @Ctx() context: MqttContext) {
     const topic = context.getTopic();
     this.logger.debug(`Received direct sensor message on topic ${topic}`);
+    this.logger.debug(`Message payload: ${JSON.stringify(data)}`);
     await this.mqttService.processMessage(topic, data);
   }
 
@@ -39,5 +43,20 @@ export class MqttController {
     const topic = context.getTopic();
     this.logger.debug(`Received type-based sensor message on topic ${topic}`);
     await this.mqttService.processMessage(topic, data);
+  }
+
+  // Add a wildcard pattern to catch any unhandled topics
+  @MessagePattern('#')
+  async handleAnyTopic(@Payload() data: any, @Ctx() context: MqttContext) {
+    const topic = context.getTopic();
+    // Only process if it's not one of our already-handled patterns
+    if (
+      !topic.startsWith('shrimp_farm/') &&
+      !topic.startsWith('sensor/') &&
+      !topic.startsWith('sensors/')
+    ) {
+      this.logger.debug(`Received message on unhandled topic ${topic}`);
+      await this.mqttService.processMessage(topic, data);
+    }
   }
 }

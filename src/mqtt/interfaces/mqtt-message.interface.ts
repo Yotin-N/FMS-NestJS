@@ -1,6 +1,6 @@
 export interface MqttSensorData {
   value: number;
-  timestamp?: string;
+  timestamp?: string | Date;
   serialNumber?: string;
   type?: string;
   deviceId?: string;

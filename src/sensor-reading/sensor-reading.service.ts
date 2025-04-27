@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { Injectable } from '@nestjs/common';
 import { CreateSensorReadingDto } from './dto/create-sensor-reading.dto';
 import { UpdateSensorReadingDto } from './dto/update-sensor-reading.dto';
