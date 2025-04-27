@@ -1,5 +1,5 @@
-/* eslint-disable no-useless-escape */
 /* eslint-disable @typescript-eslint/await-thenable */
+/* eslint-disable no-useless-escape */
 import {
   Injectable,
   Logger,
@@ -14,6 +14,8 @@ import {
   MqttTopicData,
 } from './interfaces/mqtt-message.interface';
 import { SensorReadingService } from '../sensor-reading/sensor-reading.service';
+import { Sensor } from '../sensor/entities/sensor.entity';
+import { SensorResponseDto } from '../sensor/dto/sensor.dto';
 
 @Injectable()
 export class MqttService implements OnModuleInit {
@@ -33,7 +35,7 @@ export class MqttService implements OnModuleInit {
       await this.client.connect();
       this.logger.log('Connected to MQTT broker');
 
-      // Subscribe to general patterns
+      // Subscribe to general wildcard patterns
       await this.client.emit('mqtt_subscribe', { topic: 'sensor/+' });
       await this.client.emit('mqtt_subscribe', { topic: 'sensors/+/+' });
       await this.client.emit('mqtt_subscribe', {
@@ -50,12 +52,10 @@ export class MqttService implements OnModuleInit {
   async subscribeToAllSensors() {
     try {
       const sensors = await this.sensorService.findAll(1, 1000);
-      for (const sensor of sensors.data) {
-        await this.subscribeSensorTopics(
-          sensor.id,
-          sensor.serialNumber,
-          sensor.type,
-        );
+      for (const sensorDto of sensors.data) {
+        // Fetch the full sensor entity with relationships
+        const sensor = await this.sensorService.findOne(sensorDto.id);
+        await this.subscribeSensor(sensor);
       }
       this.logger.log(`Subscribed to ${sensors.data.length} sensors`);
     } catch (error) {
@@ -63,33 +63,53 @@ export class MqttService implements OnModuleInit {
     }
   }
 
-  async subscribeSensorTopics(
-    sensorId: string,
-    serialNumber: string,
-    type: any, // Changed type to any to avoid import issues
-  ) {
+  async subscribeSensorById(sensorId: string) {
     try {
       const sensor = await this.sensorService.findOne(sensorId);
-      const deviceId = sensor.deviceId;
-      const farmId = sensor.device.farm.id;
-
-      const topics = [
-        `shrimp_farm/${farmId}/device/${deviceId}/sensor/${type.toLowerCase()}`,
-        `sensor/${serialNumber}`,
-        `sensors/${type.toLowerCase()}/${serialNumber}`,
-      ];
-
-      for (const topic of topics) {
-        if (!this.activeTopics.has(topic)) {
-          await this.subscribeTopic(topic, sensorId);
-          this.activeTopics.add(topic);
-          this.logger.log(`Subscribed to topic: ${topic}`);
-        }
-      }
+      return this.subscribeSensor(sensor);
     } catch (error) {
       this.logger.error(
         `Failed to subscribe to sensor ${sensorId}: ${error.message}`,
       );
+      throw error;
+    }
+  }
+
+  // This method now accepts only full Sensor entities
+  async subscribeSensor(sensor: Sensor) {
+    try {
+      // Generate MQTT topic for the sensor
+      const mqttTopic = this.generateMqttTopic(sensor);
+
+      // Subscribe to the primary topic
+      if (!this.activeTopics.has(mqttTopic)) {
+        await this.subscribeTopic(mqttTopic, sensor.id);
+        this.activeTopics.add(mqttTopic);
+        this.logger.log(`Subscribed to primary topic: ${mqttTopic}`);
+      }
+
+      // Also subscribe to the serial number based topic as fallback
+      const serialTopic = `sensor/${sensor.serialNumber}`;
+      if (!this.activeTopics.has(serialTopic)) {
+        await this.subscribeTopic(serialTopic, sensor.id);
+        this.activeTopics.add(serialTopic);
+        this.logger.log(`Subscribed to serial topic: ${serialTopic}`);
+      }
+
+      // Type-based topic for grouping similar sensors
+      const typeTopic = `sensors/${sensor.type.toLowerCase()}/${sensor.serialNumber}`;
+      if (!this.activeTopics.has(typeTopic)) {
+        await this.subscribeTopic(typeTopic, sensor.id);
+        this.activeTopics.add(typeTopic);
+        this.logger.log(`Subscribed to type topic: ${typeTopic}`);
+      }
+
+      return mqttTopic;
+    } catch (error) {
+      this.logger.error(
+        `Failed to subscribe to sensor ${sensor.id}: ${error.message}`,
+      );
+      throw error;
     }
   }
 
@@ -102,6 +122,7 @@ export class MqttService implements OnModuleInit {
       this.logger.error(
         `Failed to subscribe to topic ${topic}: ${error.message}`,
       );
+      throw error;
     }
   }
 
@@ -135,7 +156,7 @@ export class MqttService implements OnModuleInit {
         return;
       }
 
-      // Use SensorReadingService instead of SensorService
+      // Use SensorReadingService to create a new reading
       await this.sensorReadingService.create({
         sensorId,
         value: data.value,
@@ -172,7 +193,7 @@ export class MqttService implements OnModuleInit {
         const sensor =
           await this.sensorService.findBySerialNumber(serialNumber);
 
-        // Use SensorReadingService instead of SensorService
+        // Use SensorReadingService to create a new reading
         await this.sensorReadingService.create({
           sensorId: sensor.id,
           value: data.value,
@@ -285,6 +306,77 @@ export class MqttService implements OnModuleInit {
     } catch (error) {
       this.logger.error(
         `Failed to unsubscribe from topic ${topic}: ${error.message}`,
+      );
+    }
+  }
+
+  // Method to generate MQTT topic for a sensor entity or DTO
+  generateMqttTopic(sensor: Sensor | SensorResponseDto): string {
+    // For Sensor entity with relationships
+    if ('device' in sensor && sensor.device?.farm?.id) {
+      return `shrimp_farm/${sensor.device.farm.id}/device/${sensor.deviceId}/sensor/${sensor.type.toLowerCase()}`;
+    }
+
+    // Fallback to serial number if full hierarchy isn't available
+    return `sensor/${sensor.serialNumber}`;
+  }
+
+  // Method to handle sensor creation - subscribe to the necessary topics
+  async handleSensorCreated(sensorId: string): Promise<string> {
+    return this.subscribeSensorById(sensorId);
+  }
+
+  // Method to handle sensor updates - update subscriptions if needed
+  async handleSensorUpdated(
+    sensorId: string,
+    oldSerialNumber?: string,
+  ): Promise<string> {
+    try {
+      const sensor = await this.sensorService.findOne(sensorId);
+
+      // If the serial number changed, unsubscribe from old topics
+      if (oldSerialNumber && oldSerialNumber !== sensor.serialNumber) {
+        const oldSerialTopic = `sensor/${oldSerialNumber}`;
+        const oldTypeTopic = `sensors/${sensor.type.toLowerCase()}/${oldSerialNumber}`;
+
+        await this.unsubscribeTopic(oldSerialTopic);
+        await this.unsubscribeTopic(oldTypeTopic);
+      }
+
+      // Subscribe to current topics
+      return this.subscribeSensor(sensor);
+    } catch (error) {
+      this.logger.error(
+        `Failed to update subscriptions for sensor ${sensorId}: ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
+  // Method to handle sensor deletion - unsubscribe from topics
+  async handleSensorDeleted(
+    sensorId: string,
+    serialNumber: string,
+    type: string,
+  ): Promise<void> {
+    try {
+      // We need to generate topics without fetching the sensor since it might be deleted already
+      const serialTopic = `sensor/${serialNumber}`;
+      const typeTopic = `sensors/${type.toLowerCase()}/${serialNumber}`;
+
+      // Try to unsubscribe from all possible topics
+      await this.unsubscribeTopic(serialTopic);
+      await this.unsubscribeTopic(typeTopic);
+
+      // Clean up any remaining topics for this sensor
+      this.topicToSensorMap.forEach((sid, topic) => {
+        if (sid === sensorId) {
+          this.unsubscribeTopic(topic);
+        }
+      });
+    } catch (error) {
+      this.logger.error(
+        `Error unsubscribing deleted sensor ${sensorId}: ${error.message}`,
       );
     }
   }

@@ -10,24 +10,20 @@ import {
   UseGuards,
   Query,
   Request,
+  NotFoundException,
   ForbiddenException,
   ParseUUIDPipe,
   ParseIntPipe,
-  Inject,
-  forwardRef,
 } from '@nestjs/common';
 import { SensorReadingService } from './sensor-reading.service';
 import {
   CreateSensorReadingDto,
   UpdateSensorReadingDto,
-  PaginatedSensorReadingsDto,
-  SensorReadingResponseDto,
 } from './dto/create-sensor-reading.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { FarmService } from '../farm/farm.service';
-import { SensorService } from '../sensor/sensor.service';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../user/entities/user.entity';
-import { UserService } from '../user/user.service';
 import {
   ApiTags,
   ApiOperation,
@@ -37,12 +33,10 @@ import {
   ApiParam,
   ApiQuery,
   ApiProperty,
-  ApiExtraModels,
-  getSchemaPath,
 } from '@nestjs/swagger';
 
-// Dedicated schema classes for Swagger
-class SensorReadingSchema {
+// Example response DTOs for Swagger documentation
+class SensorReadingDto {
   @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
   id: string;
 
@@ -52,13 +46,13 @@ class SensorReadingSchema {
   @ApiProperty({ example: 7.2 })
   value: number;
 
-  @ApiProperty({ example: '2025-01-01T12:00:00.000Z' })
+  @ApiProperty({ example: '2025-01-01T00:00:00.000Z' })
   timestamp: Date;
 }
 
-class PaginatedReadingsSchema {
-  @ApiProperty({ type: [SensorReadingSchema] })
-  data: SensorReadingSchema[];
+class PaginatedReadingsDto {
+  @ApiProperty({ type: [SensorReadingDto] })
+  data: SensorReadingDto[];
 
   @ApiProperty({ example: 100 })
   total: number;
@@ -73,187 +67,37 @@ class PaginatedReadingsSchema {
   totalPages: number;
 }
 
-@ApiTags('sensor-readings')
-@Controller('sensor-readings')
+@ApiTags('readings')
+@Controller('readings')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access-token')
-@ApiExtraModels(
-  SensorReadingSchema,
-  PaginatedReadingsSchema,
-  SensorReadingResponseDto,
-  PaginatedSensorReadingsDto,
-)
 export class SensorReadingController {
-  constructor(
-    private readonly sensorReadingService: SensorReadingService,
-    @Inject(forwardRef(() => SensorService))
-    private readonly sensorService: SensorService,
-    private readonly farmService: FarmService,
-    private readonly userService: UserService,
-  ) {}
-
-  @Post()
-  @ApiOperation({ summary: 'Create a new sensor reading' })
-  @ApiBody({
-    type: CreateSensorReadingDto,
-    examples: {
-      example: {
-        value: {
-          sensorId: '123e4567-e89b-12d3-a456-426614174000',
-          value: 7.2,
-          timestamp: '2025-01-01T12:00:00.000Z',
-        },
-      },
-      simpleExample: {
-        value: {
-          sensorId: '123e4567-e89b-12d3-a456-426614174000',
-          value: 7.2,
-        },
-        summary: 'Simple reading (current timestamp)',
-      },
-    },
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'Sensor reading successfully created',
-    schema: { $ref: getSchemaPath(SensorReadingSchema) },
-  })
-  @ApiResponse({ status: 400, description: 'Bad request - invalid data' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({
-    status: 403,
-    description: 'Forbidden - insufficient permissions',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Not found - sensor does not exist',
-  })
-  async create(
-    @Body() createSensorReadingDto: CreateSensorReadingDto,
-    @Request() req,
-  ) {
-    // Get the sensor to check farm access
-    const sensor = await this.sensorService.findOne(
-      createSensorReadingDto.sensorId,
-    );
-
-    // Check if user has access to the farm
-    const isAdmin = await this.userHasAdminRole(req.user.userId);
-    const isMember = await this.farmService.isUserMember(
-      sensor.device.farm.id,
-      req.user.userId,
-    );
-
-    if (!isAdmin && !isMember) {
-      throw new ForbiddenException(
-        'You do not have permission to add readings to this sensor',
-      );
-    }
-
-    return this.sensorReadingService.create(createSensorReadingDto);
-  }
+  constructor(private readonly sensorReadingService: SensorReadingService) {}
 
   @Get()
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
   @ApiOperation({ summary: 'Get all sensor readings (admin only)' })
   @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 100 })
   @ApiResponse({
     status: 200,
     description: 'Returns all sensor readings with pagination',
-    schema: { $ref: getSchemaPath(PaginatedReadingsSchema) },
+    type: PaginatedReadingsDto,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - requires admin role' })
   async findAll(
     @Query('page', new ParseIntPipe({ optional: true })) page = 1,
     @Query('limit', new ParseIntPipe({ optional: true })) limit = 100,
-    @Request() req,
   ) {
-    // Only admins can see all readings
-    const isAdmin = await this.userHasAdminRole(req.user.userId);
-    if (!isAdmin) {
-      throw new ForbiddenException(
-        'Only administrators can view all sensor readings',
-      );
-    }
-
     return this.sensorReadingService.findAll(page, limit);
   }
 
-  @Get('by-sensor/:sensorId')
-  @ApiOperation({ summary: 'Get readings by sensor ID' })
-  @ApiParam({
-    name: 'sensorId',
-    description: 'Sensor ID',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  @ApiQuery({
-    name: 'startDate',
-    required: false,
-    type: String,
-    example: '2025-01-01T00:00:00.000Z',
-  })
-  @ApiQuery({
-    name: 'endDate',
-    required: false,
-    type: String,
-    example: '2025-01-31T23:59:59.999Z',
-  })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 100 })
-  @ApiResponse({
-    status: 200,
-    description: 'Returns readings for the specified sensor with pagination',
-    schema: { $ref: getSchemaPath(PaginatedReadingsSchema) },
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({
-    status: 403,
-    description: 'Forbidden - insufficient permissions',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Not found - sensor does not exist',
-  })
-  async findBySensor(
-    @Request() req,
-    @Param('sensorId', ParseUUIDPipe) sensorId: string,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
-    @Query('page', new ParseIntPipe({ optional: true })) page = 1,
-    @Query('limit', new ParseIntPipe({ optional: true })) limit = 100,
-  ) {
-    // Get the sensor to check farm access
-    const sensor = await this.sensorService.findOne(sensorId);
-
-    // Check if user has access to the farm
-    const isAdmin = await this.userHasAdminRole(req.user.userId);
-    const isMember = await this.farmService.isUserMember(
-      sensor.device.farm.id,
-      req.user.userId,
-    );
-
-    if (!isAdmin && !isMember) {
-      throw new ForbiddenException(
-        'You do not have permission to view readings for this sensor',
-      );
-    }
-
-    // Parse dates if provided
-    const parsedStartDate = startDate ? new Date(startDate) : undefined;
-    const parsedEndDate = endDate ? new Date(endDate) : undefined;
-
-    return this.sensorReadingService.findBySensor(
-      sensorId,
-      parsedStartDate,
-      parsedEndDate,
-      page,
-      limit,
-    );
-  }
-
   @Get(':id')
-  @ApiOperation({ summary: 'Get sensor reading by ID' })
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Get sensor reading by ID (admin only)' })
   @ApiParam({
     name: 'id',
     description: 'Sensor Reading ID',
@@ -262,188 +106,62 @@ export class SensorReadingController {
   @ApiResponse({
     status: 200,
     description: 'Returns the sensor reading with specified ID',
-    schema: { $ref: getSchemaPath(SensorReadingSchema) },
+    type: SensorReadingDto,
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({
-    status: 403,
-    description: 'Forbidden - insufficient permissions',
-  })
+  @ApiResponse({ status: 403, description: 'Forbidden - requires admin role' })
   @ApiResponse({
     status: 404,
-    description: 'Not found - sensor reading does not exist',
+    description: 'Not found - reading does not exist',
   })
-  async findOne(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
-    const reading = await this.sensorReadingService.findOne(id);
-
-    // Get the sensor to check farm access
-    const sensor = await this.sensorService.findOne(reading.sensorId);
-
-    // Check if user has access to the farm
-    const isAdmin = await this.userHasAdminRole(req.user.userId);
-    const isMember = await this.farmService.isUserMember(
-      sensor.device.farm.id,
-      req.user.userId,
-    );
-
-    if (!isAdmin && !isMember) {
-      throw new ForbiddenException(
-        'You do not have permission to view this sensor reading',
-      );
-    }
-
-    return reading;
+  async findOne(@Param('id', ParseUUIDPipe) id: string) {
+    return this.sensorReadingService.findOne(id);
   }
 
-  @Get('latest/:sensorId')
-  @ApiOperation({ summary: 'Get latest reading for a sensor' })
-  @ApiParam({
-    name: 'sensorId',
-    description: 'Sensor ID',
-    example: '123e4567-e89b-12d3-a456-426614174000',
+  @Delete()
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiOperation({ summary: 'Delete old readings (admin only)' })
+  @ApiQuery({
+    name: 'olderThan',
+    required: true,
+    type: String,
+    example: '2025-01-01T00:00:00.000Z',
+    description: 'Date threshold - readings older than this will be deleted',
   })
   @ApiResponse({
     status: 200,
-    description: 'Returns the latest reading for the specified sensor',
-    schema: { $ref: getSchemaPath(SensorReadingSchema) },
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({
-    status: 403,
-    description: 'Forbidden - insufficient permissions',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Not found - sensor does not exist',
-  })
-  async getLatestReading(
-    @Param('sensorId', ParseUUIDPipe) sensorId: string,
-    @Request() req,
-  ) {
-    // Get the sensor to check farm access
-    const sensor = await this.sensorService.findOne(sensorId);
-
-    // Check if user has access to the farm
-    const isAdmin = await this.userHasAdminRole(req.user.userId);
-    const isMember = await this.farmService.isUserMember(
-      sensor.device.farm.id,
-      req.user.userId,
-    );
-
-    if (!isAdmin && !isMember) {
-      throw new ForbiddenException(
-        'You do not have permission to view readings for this sensor',
-      );
-    }
-
-    return this.sensorReadingService.getLatestReading(sensorId);
-  }
-
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update sensor reading' })
-  @ApiParam({
-    name: 'id',
-    description: 'Sensor Reading ID',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  @ApiBody({
-    type: UpdateSensorReadingDto,
-    examples: {
-      example: {
-        value: {
-          value: 7.5,
-          timestamp: '2025-01-01T12:30:00.000Z',
+    description: 'Returns the number of deleted readings',
+    schema: {
+      properties: {
+        deletedCount: {
+          type: 'number',
+          example: 1250,
         },
       },
     },
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Sensor reading successfully updated',
-    schema: { $ref: getSchemaPath(SensorReadingSchema) },
-  })
-  @ApiResponse({ status: 400, description: 'Bad request - invalid data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - requires admin role' })
   @ApiResponse({
-    status: 403,
-    description: 'Forbidden - insufficient permissions',
+    status: 400,
+    description: 'Bad request - invalid date format',
   })
-  @ApiResponse({
-    status: 404,
-    description: 'Not found - sensor reading does not exist',
-  })
-  async update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateSensorReadingDto: UpdateSensorReadingDto,
-    @Request() req,
-  ) {
-    const reading = await this.sensorReadingService.findOne(id);
-
-    // Get the sensor to check farm access
-    const sensor = await this.sensorService.findOne(reading.sensorId);
-
-    // Check if user has access to the farm
-    const isAdmin = await this.userHasAdminRole(req.user.userId);
-    const isMember = await this.farmService.isUserMember(
-      sensor.device.farm.id,
-      req.user.userId,
-    );
-
-    if (!isAdmin && !isMember) {
-      throw new ForbiddenException(
-        'You do not have permission to update this sensor reading',
-      );
-    }
-
-    return this.sensorReadingService.update(id, updateSensorReadingDto);
-  }
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'Delete sensor reading' })
-  @ApiParam({
-    name: 'id',
-    description: 'Sensor Reading ID',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Sensor reading successfully deleted',
-  })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({
-    status: 403,
-    description: 'Forbidden - insufficient permissions',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Not found - sensor reading does not exist',
-  })
-  async remove(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
-    const reading = await this.sensorReadingService.findOne(id);
-
-    // Get the sensor to check farm access
-    const sensor = await this.sensorService.findOne(reading.sensorId);
-
-    // Only admins or farm owners can delete readings
-    const isAdmin = await this.userHasAdminRole(req.user.userId);
-    const isFarmOwner = sensor.device.farm.ownerId === req.user.userId;
-
-    if (!isAdmin && !isFarmOwner) {
-      throw new ForbiddenException(
-        'Only administrators or farm owners can delete sensor readings',
-      );
-    }
-
-    return this.sensorReadingService.remove(id);
-  }
-
-  // Helper method to check if user has admin role
-  private async userHasAdminRole(userId: string): Promise<boolean> {
+  async deleteOldReadings(@Query('olderThan') olderThan: string) {
     try {
-      const user = await this.userService.findById(userId);
-      return user && user.role === UserRole.ADMIN;
+      const date = new Date(olderThan);
+
+      if (isNaN(date.getTime())) {
+        throw new Error('Invalid date format');
+      }
+
+      // This would be a new method in the SensorReadingService
+      const deletedCount =
+        await this.sensorReadingService.deleteOlderThan(date);
+
+      return { deletedCount };
     } catch (error) {
-      return false;
+      throw new Error(`Failed to delete old readings: ${error.message}`);
     }
   }
 }

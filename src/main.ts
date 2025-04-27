@@ -156,6 +156,11 @@ async function bootstrap() {
   const port = configService.get<number>('PORT', 3000);
   await app.listen(port);
   logger.log(`Application is running on port ${port}`);
+
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN || 'https://your-frontend-domain.com',
+    credentials: true,
+  });
 }
 
 bootstrap();

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import {
   Controller,
   Get,
@@ -12,6 +13,9 @@ import {
   ForbiddenException,
   ParseUUIDPipe,
   ParseIntPipe,
+  Inject,
+  forwardRef,
+  NotFoundException,
 } from '@nestjs/common';
 import { SensorService } from './sensor.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -22,6 +26,9 @@ import { CreateSensorDto, UpdateSensorDto } from './dto/sensor.dto';
 import { FarmService } from '../farm/farm.service';
 import { DeviceService } from '../device/device.service';
 import { SensorType } from './entities/sensor.entity';
+import { SensorReadingService } from '../sensor-reading/sensor-reading.service';
+import { CreateSensorReadingDto } from '../sensor-reading/dto/create-sensor-reading.dto';
+import { MqttService } from '../mqtt/mqtt.service';
 import {
   ApiTags,
   ApiOperation,
@@ -35,8 +42,6 @@ import {
   ApiExtraModels,
   getSchemaPath,
 } from '@nestjs/swagger';
-import { SensorReadingResponseDto as SensorReadingDto } from '../sensor-reading/dto/create-sensor-reading.dto';
-import { PaginatedSensorReadingsDto as SRPaginatedDto } from '../sensor-reading/dto/create-sensor-reading.dto';
 
 // Example response DTOs for Swagger documentation
 class SensorDto {
@@ -72,6 +77,9 @@ class SensorDto {
 
   @ApiProperty({ example: '2025-01-01T00:00:00.000Z' })
   updatedAt: Date;
+
+  @ApiProperty({ example: 'shrimp_farm/farm123/device/device456/sensor/ph' })
+  mqttTopic: string;
 }
 
 class PaginatedSensorsDto {
@@ -91,7 +99,7 @@ class PaginatedSensorsDto {
   totalPages: number;
 }
 
-// Creating unique Swagger schema for sensor controller
+// Reading response schema
 class SensorReadingResponseSchema {
   @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
   id: string;
@@ -127,17 +135,15 @@ class PaginatedSensorReadingsSchema {
 @Controller('sensors')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access-token')
-@ApiExtraModels(
-  SensorReadingResponseSchema,
-  PaginatedSensorReadingsSchema,
-  SensorReadingDto,
-  SRPaginatedDto,
-)
+@ApiExtraModels(SensorReadingResponseSchema, PaginatedSensorReadingsSchema)
 export class SensorController {
   constructor(
     private readonly sensorService: SensorService,
     private readonly deviceService: DeviceService,
     private readonly farmService: FarmService,
+    private readonly sensorReadingService: SensorReadingService,
+    @Inject(forwardRef(() => MqttService))
+    private readonly mqttService: MqttService,
   ) {}
 
   @Post()
@@ -189,7 +195,20 @@ export class SensorController {
     description: 'Conflict - serial number already exists',
   })
   async create(@Body() createSensorDto: CreateSensorDto, @Request() req) {
-    return this.sensorService.create(createSensorDto, req.user.userId);
+    // Create sensor
+    const sensor = await this.sensorService.create(
+      createSensorDto,
+      req.user.userId,
+    );
+
+    // Subscribe to MQTT topics for this sensor
+    const mqttTopic = await this.mqttService.handleSensorCreated(sensor.id);
+
+    // Return the sensor with MQTT topic
+    return {
+      ...sensor,
+      mqttTopic,
+    };
   }
 
   @Get()
@@ -209,7 +228,18 @@ export class SensorController {
     @Query('page', new ParseIntPipe({ optional: true })) page = 1,
     @Query('limit', new ParseIntPipe({ optional: true })) limit = 10,
   ) {
-    return this.sensorService.findAll(page, limit);
+    const result = await this.sensorService.findAll(page, limit);
+
+    // Add MQTT topics to each sensor
+    const enhancedData = result.data.map((sensor) => ({
+      ...sensor,
+      mqttTopic: this.mqttService.generateMqttTopic(sensor),
+    }));
+
+    return {
+      ...result,
+      data: enhancedData,
+    };
   }
 
   @Get('by-device/:deviceId')
@@ -258,7 +288,22 @@ export class SensorController {
       );
     }
 
-    return this.sensorService.findAllByDevice(deviceId, page, limit);
+    const result = await this.sensorService.findAllByDevice(
+      deviceId,
+      page,
+      limit,
+    );
+
+    // Add MQTT topics to each sensor
+    const enhancedData = result.data.map((sensor) => ({
+      ...sensor,
+      mqttTopic: this.mqttService.generateMqttTopic(sensor),
+    }));
+
+    return {
+      ...result,
+      data: enhancedData,
+    };
   }
 
   @Get(':id')
@@ -298,11 +343,128 @@ export class SensorController {
       );
     }
 
-    return sensor;
+    // Generate MQTT topic for the sensor
+    const mqttTopic = this.mqttService.generateMqttTopic(sensor);
+
+    // Return the sensor with MQTT topic
+    return {
+      ...sensor,
+      mqttTopic,
+    };
   }
 
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update sensor' })
+  @ApiParam({
+    name: 'id',
+    description: 'Sensor ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiBody({
+    type: UpdateSensorDto,
+    examples: {
+      example: {
+        value: {
+          name: 'Updated Sensor Name',
+          isActive: false,
+          minValue: 2,
+          maxValue: 12,
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Sensor successfully updated',
+    type: SensorDto,
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - invalid data' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - insufficient permissions',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Not found - sensor does not exist',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Conflict - serial number already exists',
+  })
+  async update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateSensorDto: UpdateSensorDto,
+    @Request() req,
+  ) {
+    // Get the original sensor for comparison
+    const originalSensor = await this.sensorService.findOne(id);
+    const oldSerialNumber = originalSensor.serialNumber;
+
+    // Update the sensor
+    const updatedSensor = await this.sensorService.update(
+      id,
+      updateSensorDto,
+      req.user.userId,
+    );
+
+    // Update MQTT subscriptions if needed
+    let mqttTopic = this.mqttService.generateMqttTopic(updatedSensor);
+
+    // If serial number changed, update MQTT subscriptions
+    if (
+      updateSensorDto.serialNumber &&
+      updateSensorDto.serialNumber !== oldSerialNumber
+    ) {
+      mqttTopic = await this.mqttService.handleSensorUpdated(
+        id,
+        oldSerialNumber,
+      );
+    }
+
+    // Return the updated sensor with MQTT topic
+    return {
+      ...updatedSensor,
+      mqttTopic,
+    };
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete sensor' })
+  @ApiParam({
+    name: 'id',
+    description: 'Sensor ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiResponse({ status: 200, description: 'Sensor successfully deleted' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - insufficient permissions',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Not found - sensor does not exist',
+  })
+  async remove(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
+    // Get the sensor before removing it
+    const sensor = await this.sensorService.findOne(id);
+    const serialNumber = sensor.serialNumber;
+    const type = sensor.type;
+
+    // Remove the sensor
+    await this.sensorService.remove(id, req.user.userId);
+
+    // Remove MQTT subscriptions
+    await this.mqttService.handleSensorDeleted(id, serialNumber, type);
+
+    return { message: 'Sensor successfully deleted' };
+  }
+
+  // READINGS ENDPOINTS
+
   @Get(':id/readings')
-  @ApiOperation({ summary: 'Get sensor readings' })
+  @ApiOperation({ summary: 'Get readings for a specific sensor' })
   @ApiParam({
     name: 'id',
     description: 'Sensor ID',
@@ -363,7 +525,7 @@ export class SensorController {
     const parsedStartDate = startDate ? new Date(startDate) : undefined;
     const parsedEndDate = endDate ? new Date(endDate) : undefined;
 
-    return this.sensorService.getReadings(
+    return this.sensorReadingService.findBySensor(
       id,
       parsedStartDate,
       parsedEndDate,
@@ -372,95 +534,41 @@ export class SensorController {
     );
   }
 
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update sensor' })
+  @Post(':id/readings')
+  @ApiOperation({ summary: 'Add a reading to a specific sensor' })
   @ApiParam({
     name: 'id',
     description: 'Sensor ID',
     example: '123e4567-e89b-12d3-a456-426614174000',
   })
   @ApiBody({
-    type: UpdateSensorDto,
-    examples: {
-      example: {
+    schema: {
+      properties: {
         value: {
-          name: 'Updated Sensor Name',
-          isActive: false,
-          minValue: 2,
-          maxValue: 12,
+          type: 'number',
+          example: 7.2,
+        },
+        timestamp: {
+          type: 'string',
+          example: '2025-01-01T12:00:00.000Z',
+          description: 'Optional. Current time will be used if not provided.',
         },
       },
+      required: ['value'],
     },
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Sensor successfully updated',
-    type: SensorDto,
-  })
-  @ApiResponse({ status: 400, description: 'Bad request - invalid data' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({
-    status: 403,
-    description: 'Forbidden - insufficient permissions',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Not found - sensor does not exist',
-  })
-  @ApiResponse({
-    status: 409,
-    description: 'Conflict - serial number already exists',
-  })
-  async update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateSensorDto: UpdateSensorDto,
-    @Request() req,
-  ) {
-    return this.sensorService.update(id, updateSensorDto, req.user.userId);
-  }
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'Delete sensor' })
-  @ApiParam({
-    name: 'id',
-    description: 'Sensor ID',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  @ApiResponse({ status: 200, description: 'Sensor successfully deleted' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({
-    status: 403,
-    description: 'Forbidden - insufficient permissions',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Not found - sensor does not exist',
-  })
-  async remove(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
-    return this.sensorService.remove(id, req.user.userId);
-  }
-
-  @Post(':id/readings')
-  @ApiOperation({ summary: 'Add a sensor reading' })
-  @ApiParam({
-    name: 'id',
-    description: 'Sensor ID',
-    example: '123e4567-e89b-12d3-a456-426614174000',
-  })
-  @ApiBody({
-    type: SensorReadingDto,
     examples: {
-      example: {
+      withTimestamp: {
         value: {
           value: 7.2,
           timestamp: '2025-01-01T12:00:00.000Z',
         },
+        summary: 'Reading with timestamp',
       },
-      simpleValue: {
+      valueOnly: {
         value: {
           value: 7.2,
         },
-        summary: 'Simple value (current timestamp)',
+        summary: 'Reading with current timestamp',
       },
     },
   })
@@ -481,7 +589,7 @@ export class SensorController {
   })
   async addReading(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() readingDto: SensorReadingDto,
+    @Body() readingDto: { value: number; timestamp?: string },
     @Request() req,
   ) {
     const sensor = await this.sensorService.findOne(id);
@@ -499,7 +607,282 @@ export class SensorController {
       );
     }
 
-    return this.sensorService.addReading(id, readingDto);
+    // Create the reading using the SensorReadingService
+    const createReadingDto: CreateSensorReadingDto = {
+      sensorId: id,
+      value: readingDto.value,
+      timestamp: readingDto.timestamp
+        ? new Date(readingDto.timestamp)
+        : undefined,
+    };
+
+    return this.sensorReadingService.create(createReadingDto);
+  }
+
+  @Get(':sensorId/readings/:readingId')
+  @ApiOperation({ summary: 'Get a specific reading for a sensor' })
+  @ApiParam({
+    name: 'sensorId',
+    description: 'Sensor ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiParam({
+    name: 'readingId',
+    description: 'Reading ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns the specific reading',
+    schema: { $ref: getSchemaPath(SensorReadingResponseSchema) },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - insufficient permissions',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Not found - sensor or reading does not exist',
+  })
+  async getReading(
+    @Param('sensorId', ParseUUIDPipe) sensorId: string,
+    @Param('readingId', ParseUUIDPipe) readingId: string,
+    @Request() req,
+  ) {
+    // First verify the sensor exists and the user has access
+    const sensor = await this.sensorService.findOne(sensorId);
+
+    // Check if user has access to the farm that owns this device
+    const isAdmin = await this.userHasAdminRole(req.user.userId);
+    const isMember = await this.farmService.isUserMember(
+      sensor.device.farm.id,
+      req.user.userId,
+    );
+
+    if (!isAdmin && !isMember) {
+      throw new ForbiddenException(
+        'You do not have permission to view readings for this sensor',
+      );
+    }
+
+    // Get the reading
+    const reading = await this.sensorReadingService.findOne(readingId);
+
+    // Verify the reading belongs to the requested sensor
+    if (reading.sensorId !== sensorId) {
+      throw new ForbiddenException(
+        'The requested reading does not belong to this sensor',
+      );
+    }
+
+    return reading;
+  }
+
+  @Patch(':sensorId/readings/:readingId')
+  @ApiOperation({ summary: 'Update a specific reading for a sensor' })
+  @ApiParam({
+    name: 'sensorId',
+    description: 'Sensor ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiParam({
+    name: 'readingId',
+    description: 'Reading ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiBody({
+    schema: {
+      properties: {
+        value: {
+          type: 'number',
+          example: 7.5,
+        },
+        timestamp: {
+          type: 'string',
+          example: '2025-01-01T12:30:00.000Z',
+        },
+      },
+    },
+    examples: {
+      example: {
+        value: {
+          value: 7.5,
+          timestamp: '2025-01-01T12:30:00.000Z',
+        },
+      },
+      valueOnly: {
+        value: {
+          value: 7.5,
+        },
+        summary: 'Update value only',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Reading successfully updated',
+    schema: { $ref: getSchemaPath(SensorReadingResponseSchema) },
+  })
+  @ApiResponse({ status: 400, description: 'Bad request - invalid data' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - insufficient permissions',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Not found - sensor or reading does not exist',
+  })
+  async updateReading(
+    @Param('sensorId', ParseUUIDPipe) sensorId: string,
+    @Param('readingId', ParseUUIDPipe) readingId: string,
+    @Body() updateDto: { value?: number; timestamp?: string },
+    @Request() req,
+  ) {
+    // First verify the sensor exists and the user has access
+    const sensor = await this.sensorService.findOne(sensorId);
+
+    // Check if user has access to the farm that owns this device
+    const isAdmin = await this.userHasAdminRole(req.user.userId);
+    const isMember = await this.farmService.isUserMember(
+      sensor.device.farm.id,
+      req.user.userId,
+    );
+
+    if (!isAdmin && !isMember) {
+      throw new ForbiddenException(
+        'You do not have permission to update readings for this sensor',
+      );
+    }
+
+    // Get the reading
+    const reading = await this.sensorReadingService.findOne(readingId);
+
+    // Verify the reading belongs to the requested sensor
+    if (reading.sensorId !== sensorId) {
+      throw new ForbiddenException(
+        'The requested reading does not belong to this sensor',
+      );
+    }
+
+    // Prepare the update data
+    const updateData: any = {};
+    if (updateDto.value !== undefined) updateData.value = updateDto.value;
+    if (updateDto.timestamp !== undefined)
+      updateData.timestamp = new Date(updateDto.timestamp);
+
+    // Update the reading
+    return this.sensorReadingService.update(readingId, updateData);
+  }
+
+  @Delete(':sensorId/readings/:readingId')
+  @ApiOperation({ summary: 'Delete a specific reading for a sensor' })
+  @ApiParam({
+    name: 'sensorId',
+    description: 'Sensor ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiParam({
+    name: 'readingId',
+    description: 'Reading ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Reading successfully deleted',
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - insufficient permissions',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Not found - sensor or reading does not exist',
+  })
+  async deleteReading(
+    @Param('sensorId', ParseUUIDPipe) sensorId: string,
+    @Param('readingId', ParseUUIDPipe) readingId: string,
+    @Request() req,
+  ) {
+    // First verify the sensor exists and the user has access
+    const sensor = await this.sensorService.findOne(sensorId);
+
+    // Only admins or farm owners can delete readings
+    const isAdmin = await this.userHasAdminRole(req.user.userId);
+    const isFarmOwner = sensor.device.farm.ownerId === req.user.userId;
+
+    if (!isAdmin && !isFarmOwner) {
+      throw new ForbiddenException(
+        'Only administrators or farm owners can delete sensor readings',
+      );
+    }
+
+    // Get the reading
+    const reading = await this.sensorReadingService.findOne(readingId);
+
+    // Verify the reading belongs to the requested sensor
+    if (reading.sensorId !== sensorId) {
+      throw new ForbiddenException(
+        'The requested reading does not belong to this sensor',
+      );
+    }
+
+    // Delete the reading
+    await this.sensorReadingService.remove(readingId);
+    return { message: 'Reading successfully deleted' };
+  }
+
+  @Get(':id/readings/latest')
+  @ApiOperation({ summary: 'Get latest reading for a sensor' })
+  @ApiParam({
+    name: 'id',
+    description: 'Sensor ID',
+    example: '123e4567-e89b-12d3-a456-426614174000',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Returns the latest reading for the specified sensor',
+    schema: { $ref: getSchemaPath(SensorReadingResponseSchema) },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - insufficient permissions',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Not found - sensor does not exist or no readings available',
+  })
+  async getLatestReading(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Request() req,
+  ) {
+    // First verify the sensor exists and the user has access
+    const sensor = await this.sensorService.findOne(id);
+
+    // Check if user has access to the farm that owns this device
+    const isAdmin = await this.userHasAdminRole(req.user.userId);
+    const isMember = await this.farmService.isUserMember(
+      sensor.device.farm.id,
+      req.user.userId,
+    );
+
+    if (!isAdmin && !isMember) {
+      throw new ForbiddenException(
+        'You do not have permission to view readings for this sensor',
+      );
+    }
+
+    // Get the latest reading
+    const reading = await this.sensorReadingService.getLatestReading(id);
+
+    if (!reading) {
+      throw new NotFoundException('No readings available for this sensor');
+    }
+
+    return reading;
   }
 
   // Helper method to check if user has admin role
@@ -509,7 +892,6 @@ export class SensorController {
       const user = await this.farmService['userService'].findById(userId);
       return user && user.role === UserRole.ADMIN;
     } catch (error) {
-      console.error('Error checking user role:', error);
       return false;
     }
   }
