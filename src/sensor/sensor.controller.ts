@@ -18,11 +18,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../user/entities/user.entity';
-import {
-  CreateSensorDto,
-  UpdateSensorDto,
-  SensorReadingDto,
-} from './dto/sensor.dto';
+import { CreateSensorDto, UpdateSensorDto } from './dto/sensor.dto';
 import { FarmService } from '../farm/farm.service';
 import { DeviceService } from '../device/device.service';
 import { SensorType } from './entities/sensor.entity';
@@ -36,7 +32,11 @@ import {
   ApiQuery,
   ApiProperty,
   ApiPropertyOptional,
+  ApiExtraModels,
+  getSchemaPath,
 } from '@nestjs/swagger';
+import { SensorReadingResponseDto as SensorReadingDto } from '../sensor-reading/dto/create-sensor-reading.dto';
+import { PaginatedSensorReadingsDto as SRPaginatedDto } from '../sensor-reading/dto/create-sensor-reading.dto';
 
 // Example response DTOs for Swagger documentation
 class SensorDto {
@@ -91,7 +91,8 @@ class PaginatedSensorsDto {
   totalPages: number;
 }
 
-class SensorReadingResponseDto {
+// Creating unique Swagger schema for sensor controller
+class SensorReadingResponseSchema {
   @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
   id: string;
 
@@ -105,9 +106,9 @@ class SensorReadingResponseDto {
   sensorId: string;
 }
 
-class PaginatedSensorReadingsDto {
-  @ApiProperty({ type: [SensorReadingResponseDto] })
-  data: SensorReadingResponseDto[];
+class PaginatedSensorReadingsSchema {
+  @ApiProperty({ type: [SensorReadingResponseSchema] })
+  data: SensorReadingResponseSchema[];
 
   @ApiProperty({ example: 1000 })
   total: number;
@@ -126,6 +127,12 @@ class PaginatedSensorReadingsDto {
 @Controller('sensors')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access-token')
+@ApiExtraModels(
+  SensorReadingResponseSchema,
+  PaginatedSensorReadingsSchema,
+  SensorReadingDto,
+  SRPaginatedDto,
+)
 export class SensorController {
   constructor(
     private readonly sensorService: SensorService,
@@ -318,7 +325,7 @@ export class SensorController {
   @ApiResponse({
     status: 200,
     description: 'Returns readings for the specified sensor with pagination',
-    type: PaginatedSensorReadingsDto,
+    schema: { $ref: getSchemaPath(PaginatedSensorReadingsSchema) },
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({
@@ -460,7 +467,7 @@ export class SensorController {
   @ApiResponse({
     status: 201,
     description: 'Reading successfully added',
-    type: SensorReadingResponseDto,
+    schema: { $ref: getSchemaPath(SensorReadingResponseSchema) },
   })
   @ApiResponse({ status: 400, description: 'Bad request - invalid data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })

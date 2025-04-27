@@ -36,12 +36,53 @@ import {
   ApiBearerAuth,
   ApiParam,
   ApiQuery,
+  ApiProperty,
+  ApiExtraModels,
+  getSchemaPath,
 } from '@nestjs/swagger';
+
+// Dedicated schema classes for Swagger
+class SensorReadingSchema {
+  @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
+  id: string;
+
+  @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
+  sensorId: string;
+
+  @ApiProperty({ example: 7.2 })
+  value: number;
+
+  @ApiProperty({ example: '2025-01-01T12:00:00.000Z' })
+  timestamp: Date;
+}
+
+class PaginatedReadingsSchema {
+  @ApiProperty({ type: [SensorReadingSchema] })
+  data: SensorReadingSchema[];
+
+  @ApiProperty({ example: 100 })
+  total: number;
+
+  @ApiProperty({ example: 1 })
+  page: number;
+
+  @ApiProperty({ example: 10 })
+  limit: number;
+
+  @ApiProperty({ example: 10 })
+  totalPages: number;
+}
 
 @ApiTags('sensor-readings')
 @Controller('sensor-readings')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth('access-token')
+@ApiExtraModels(
+  SensorReadingSchema,
+  PaginatedReadingsSchema,
+  SensorReadingResponseDto,
+  PaginatedSensorReadingsDto,
+)
 export class SensorReadingController {
   constructor(
     private readonly sensorReadingService: SensorReadingService,
@@ -75,7 +116,7 @@ export class SensorReadingController {
   @ApiResponse({
     status: 201,
     description: 'Sensor reading successfully created',
-    type: SensorReadingResponseDto,
+    schema: { $ref: getSchemaPath(SensorReadingSchema) },
   })
   @ApiResponse({ status: 400, description: 'Bad request - invalid data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -119,7 +160,7 @@ export class SensorReadingController {
   @ApiResponse({
     status: 200,
     description: 'Returns all sensor readings with pagination',
-    type: PaginatedSensorReadingsDto,
+    schema: { $ref: getSchemaPath(PaginatedReadingsSchema) },
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - requires admin role' })
@@ -163,7 +204,7 @@ export class SensorReadingController {
   @ApiResponse({
     status: 200,
     description: 'Returns readings for the specified sensor with pagination',
-    type: PaginatedSensorReadingsDto,
+    schema: { $ref: getSchemaPath(PaginatedReadingsSchema) },
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({
@@ -221,7 +262,7 @@ export class SensorReadingController {
   @ApiResponse({
     status: 200,
     description: 'Returns the sensor reading with specified ID',
-    type: SensorReadingResponseDto,
+    schema: { $ref: getSchemaPath(SensorReadingSchema) },
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({
@@ -264,7 +305,7 @@ export class SensorReadingController {
   @ApiResponse({
     status: 200,
     description: 'Returns the latest reading for the specified sensor',
-    type: SensorReadingResponseDto,
+    schema: { $ref: getSchemaPath(SensorReadingSchema) },
   })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({
@@ -319,7 +360,7 @@ export class SensorReadingController {
   @ApiResponse({
     status: 200,
     description: 'Sensor reading successfully updated',
-    type: SensorReadingResponseDto,
+    schema: { $ref: getSchemaPath(SensorReadingSchema) },
   })
   @ApiResponse({ status: 400, description: 'Bad request - invalid data' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
