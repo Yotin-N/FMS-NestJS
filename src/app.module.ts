@@ -1,3 +1,4 @@
+// app.module.ts
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -10,6 +11,7 @@ import { DeviceModule } from './device/device.module';
 import { SensorModule } from './sensor/sensor.module';
 import { SensorReadingModule } from './sensor-reading/sensor-reading.module';
 import { MqttModule } from './mqtt/mqtt.module';
+import * as fs from 'fs';
 
 @Module({
   imports: [
@@ -22,14 +24,21 @@ import { MqttModule } from './mqtt/mqtt.module';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         type: 'mysql',
-        host: configService.get('DB_HOST', 'localhost'),
-        port: configService.get<number>('DB_PORT', 3306),
-        username: configService.get('DB_USERNAME', 'root'),
-        password: configService.get('DB_PASSWORD', 'example'),
-        database: configService.get('DB_DATABASE', 'shrimp_farm'),
+        host: configService.get<string>('DB_HOST'),
+        port: configService.get<number>('DB_PORT'),
+        username: configService.get<string>('DB_USERNAME'),
+        password: configService.get<string>('DB_PASSWORD'),
+        database: configService.get<string>('DB_DATABASE'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: configService.get('DB_SYNCHRONIZE', 'true') === 'true',
-        logging: configService.get('DB_LOGGING', 'false') === 'true',
+        synchronize: configService.get<string>('DB_SYNCHRONIZE') === 'true',
+        logging: configService.get<string>('DB_LOGGING') === 'true',
+        ssl:
+          configService.get('DB_SSL') === 'true'
+            ? {
+                ca: fs.readFileSync(process.cwd() + '/src/certs/tidb.pem'),
+                minVersion: 'TLSv1.2',
+              }
+            : undefined,
       }),
     }),
     AuthModule,

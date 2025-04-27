@@ -37,6 +37,7 @@ client.on('connect', () => {
       try {
         const jsonMessage = JSON.parse(message.toString());
         console.log('Message (JSON):', JSON.stringify(jsonMessage, null, 2));
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
       } catch (e) {
         // If not JSON, show as string
         console.log('Message (string):', message.toString());
