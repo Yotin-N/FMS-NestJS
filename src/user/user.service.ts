@@ -34,7 +34,7 @@ export class UserService {
       // Save user with hashed password
       const savedUser = await this.userRepository.save(user);
 
-      // Fetch the user without password for returning
+      // Fetch the user WITHOUT password for returning
       return this.findById(savedUser.id);
     } catch (error) {
       if (error instanceof ConflictException) {
@@ -45,7 +45,19 @@ export class UserService {
   }
 
   async findAll(): Promise<User[]> {
-    return this.userRepository.find();
+    // Get users but exclude password field
+    return this.userRepository.find({
+      select: [
+        'id',
+        'email',
+        'firstName',
+        'lastName',
+        'role',
+        'googleId',
+        'createdAt',
+        'updatedAt',
+      ],
+    });
   }
 
   async findById(id: string, relations: string[] = []): Promise<User> {
@@ -53,6 +65,16 @@ export class UserService {
       const user = await this.userRepository.findOne({
         where: { id },
         relations,
+        select: [
+          'id',
+          'email',
+          'firstName',
+          'lastName',
+          'role',
+          'googleId',
+          'createdAt',
+          'updatedAt',
+        ],
       });
 
       if (!user) {
@@ -83,6 +105,7 @@ export class UserService {
         .createQueryBuilder('user')
         .where('user.email = :email', { email });
 
+      // Only include password field if explicitly requested
       if (includePassword) {
         queryBuilder.addSelect('user.password');
       }
@@ -104,8 +127,12 @@ export class UserService {
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
     const user = await this.findById(id);
 
+    // If updating password, it will be automatically hashed by BeforeUpdate hook in the entity
     Object.assign(user, updateUserDto);
-    return this.userRepository.save(user);
+    await this.userRepository.save(user);
+
+    // Return user without password
+    return this.findById(id);
   }
 
   async remove(id: string): Promise<void> {
@@ -114,6 +141,9 @@ export class UserService {
   }
 
   async save(user: User): Promise<User> {
-    return this.userRepository.save(user);
+    await this.userRepository.save(user);
+
+    // Return user without password
+    return this.findById(user.id);
   }
 }

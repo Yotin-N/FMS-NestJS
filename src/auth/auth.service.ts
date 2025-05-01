@@ -14,7 +14,7 @@ export class AuthService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
   ) {}
-  // Just this method needs fixing
+
   async validateUser(email: string, password: string): Promise<any> {
     // Add true parameter to retrieve password
     const user = await this.userService.findByEmail(email, true);

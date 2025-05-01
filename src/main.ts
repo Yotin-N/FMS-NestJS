@@ -1,3 +1,4 @@
+// src/main.ts
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe, Logger } from '@nestjs/common';
@@ -11,6 +12,7 @@ import * as path from 'path';
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
+  app.setGlobalPrefix('api');
   const configService = app.get(ConfigService);
 
   // Determine if we should use cloud MQTT or local MQTT
@@ -94,8 +96,19 @@ async function bootstrap() {
 
   // Global configurations
   app.use(cookieParser());
+
+  // CORS configuration - UPDATED to allow multiple origins
+  // Get origin configuration from environment variables or use default values
+  const corsOrigin = configService.get<string>(
+    'CORS_ORIGIN',
+    'http://localhost:3000,http://localhost:3001',
+  );
+
+  // Parse multiple origins if provided as comma-separated string
+  const origins = corsOrigin.split(',').map((origin) => origin.trim());
+
   app.enableCors({
-    origin: configService.get<string>('CORS_ORIGIN', 'http://localhost:3000'),
+    origin: origins.length === 1 ? origins[0] : origins,
     credentials: true,
   });
 
@@ -156,11 +169,6 @@ async function bootstrap() {
   const port = configService.get<number>('PORT', 3000);
   await app.listen(port);
   logger.log(`Application is running on port ${port}`);
-
-  app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'https://your-frontend-domain.com',
-    credentials: true,
-  });
 }
 
 bootstrap();
