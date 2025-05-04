@@ -43,6 +43,9 @@ export class User {
   })
   role: UserRole;
 
+  @Column({ default: true })
+  isActive: boolean;
+
   // Fix: Remove @JoinTable here since it's now on the Farm entity
   @ManyToMany(() => Farm, (farm) => farm.members)
   farms: Farm[];

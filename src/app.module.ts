@@ -30,7 +30,7 @@ import * as fs from 'fs';
         password: configService.get<string>('DB_PASSWORD'),
         database: configService.get<string>('DB_DATABASE'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: configService.get<string>('DB_SYNCHRONIZE') === 'true',
+        synchronize: configService.get<string>('DB_SYNCHRONIZE') === 'false',
         logging: configService.get<string>('DB_LOGGING') === 'true',
         ssl:
           configService.get('DB_SSL') === 'true'

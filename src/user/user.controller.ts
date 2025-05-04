@@ -263,4 +263,15 @@ export class UserController {
   ) {
     return this.userService.searchByEmail(email, farmId);
   }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Post()
+  @ApiOperation({ summary: 'Create a new user (admin only)' })
+  async create(@Body() createUserDto: RegisterDto) {
+    const user = await this.userService.create(createUserDto);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password, ...result } = user;
+    return result;
+  }
 }

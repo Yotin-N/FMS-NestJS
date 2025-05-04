@@ -57,6 +57,7 @@ export class UserService {
         'role',
         'googleId',
         'createdAt',
+        'isActive',
         'updatedAt',
       ],
     });
@@ -98,23 +99,36 @@ export class UserService {
     includePassword: boolean = false,
   ): Promise<User | null> {
     try {
-      // แสดง log เพื่อ debug
+      // Log for debugging
       console.log(
         `Finding user by email: ${email}, includePassword: ${includePassword}`,
       );
 
-      const queryBuilder = this.userRepository
-        .createQueryBuilder('user')
-        .where('user.email = :email', { email });
+      // Use the repository directly instead of query builder to avoid field list issues
+      const query: any = { email };
+      const options: any = {};
 
       // Only include password field if explicitly requested
       if (includePassword) {
-        queryBuilder.addSelect('user.password');
+        options.select = [
+          'id',
+          'email',
+          'firstName',
+          'lastName',
+          'role',
+          'password',
+          'googleId',
+          'createdAt',
+          'updatedAt',
+        ];
       }
 
-      const user = await queryBuilder.getOne();
+      const user = await this.userRepository.findOne({
+        where: query,
+        ...options,
+      });
 
-      // แสดง log ว่าพบผู้ใช้หรือไม่
+      // Log whether user was found
       console.log(
         `User found: ${!!user}, has password: ${user && !!user.password}`,
       );
