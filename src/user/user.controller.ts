@@ -10,6 +10,7 @@ import {
   Delete,
   ForbiddenException,
   ParseUUIDPipe,
+  Query,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { RegisterDto, UpdateUserDto } from './dto/user.dto';
@@ -253,5 +254,13 @@ export class UserController {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...result } = user;
     return result;
+  }
+
+  @Get('search')
+  async searchByEmail(
+    @Query('email') email: string,
+    @Query('farmId') farmId?: string,
+  ) {
+    return this.userService.searchByEmail(email, farmId);
   }
 }

@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -10,6 +11,7 @@ import { RegisterDto, UpdateUserDto } from './dto/user.dto';
 
 @Injectable()
 export class UserService {
+  logger: any;
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -121,6 +123,27 @@ export class UserService {
     } catch (error) {
       console.error(`Error finding user by email: ${error.message}`);
       throw new Error(`Error finding user by email: ${error.message}`);
+    }
+  }
+
+  async searchByEmail(email: string, farmId?: string): Promise<User[]> {
+    try {
+      const queryBuilder = this.userRepository
+        .createQueryBuilder('user')
+        .where('user.email LIKE :email', { email: `%${email}%` })
+        .take(10); // Limit results
+
+      // If farmId is provided, exclude users who are already members
+      if (farmId) {
+        queryBuilder
+          .leftJoin('user.farms', 'farm', 'farm.id = :farmId', { farmId })
+          .andWhere('farm.id IS NULL');
+      }
+
+      return await queryBuilder.getMany();
+    } catch (error) {
+      this.logger.error(`Error searching users by email: ${error.message}`);
+      throw new InternalServerErrorException('Failed to search users');
     }
   }
 

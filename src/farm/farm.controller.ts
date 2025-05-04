@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   Controller,
   Get,
@@ -337,5 +338,20 @@ export class FarmController {
     } catch (error) {
       return false;
     }
+  }
+
+  @Get(':id/members')
+  @UseGuards(JwtAuthGuard)
+  async getFarmMembers(@Param('id') id: string, @Request() req) {
+    const isAdmin = await this.userHasAdminRole(req.user.userId);
+    const isMember = await this.farmService.isUserMember(id, req.user.userId);
+
+    if (!isAdmin && !isMember) {
+      throw new ForbiddenException(
+        'You do not have permission to view farm members',
+      );
+    }
+
+    return this.farmService.getFarmMembers(id);
   }
 }

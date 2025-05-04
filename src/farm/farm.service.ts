@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ForbiddenException,
   Logger,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -14,6 +15,7 @@ import {
   UpdateFarmDto,
   PaginatedFarmsDto,
 } from './dto/farm.dto';
+import { User } from 'src/user/entities/user.entity';
 
 @Injectable()
 export class FarmService {
@@ -76,6 +78,7 @@ export class FarmService {
     }
   }
 
+  // In FarmService.ts
   async findAllByUser(
     userId: string,
     page = 1,
@@ -88,11 +91,11 @@ export class FarmService {
         throw new NotFoundException('User not found');
       }
 
-      // Use a query builder approach for more control
       const queryBuilder = this.farmRepository
         .createQueryBuilder('farm')
-        .innerJoin('farm.members', 'member')
-        .where('member.id = :userId', { userId })
+        .innerJoin('farm.members', 'member', 'member.id = :userId', { userId })
+        .leftJoinAndSelect('farm.members', 'allMembers')
+        .leftJoinAndSelect('farm.devices', 'devices')
         .skip((page - 1) * limit)
         .take(limit);
 
@@ -180,6 +183,12 @@ export class FarmService {
       throw new NotFoundException(`User with ID "${userId}" not found`);
     }
 
+    // Check if user is already a member
+    const isMember = await this.isUserMember(farmId, userId);
+    if (isMember) {
+      throw new ConflictException('User is already a member of this farm');
+    }
+
     try {
       // Add the user to farm members
       await this.farmRepository
@@ -191,6 +200,24 @@ export class FarmService {
       return this.findOne(farmId);
     } catch (error) {
       this.logger.error(`Error adding member to farm: ${error.message}`);
+      throw error;
+    }
+  }
+
+  async getFarmMembers(farmId: string): Promise<User[]> {
+    try {
+      const farm = await this.farmRepository.findOne({
+        where: { id: farmId },
+        relations: ['members'],
+      });
+
+      if (!farm) {
+        throw new NotFoundException(`Farm with ID "${farmId}" not found`);
+      }
+
+      return farm.members;
+    } catch (error) {
+      this.logger.error(`Error getting farm members: ${error.message}`);
       throw error;
     }
   }
@@ -217,6 +244,12 @@ export class FarmService {
     const user = await this.userService.findById(userId);
     if (!user) {
       throw new NotFoundException(`User with ID "${userId}" not found`);
+    }
+
+    // Check if user is actually a member
+    const isMember = await this.isUserMember(farmId, userId);
+    if (!isMember) {
+      throw new NotFoundException('User is not a member of this farm');
     }
 
     try {
