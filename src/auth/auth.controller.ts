@@ -170,16 +170,13 @@ export class AuthController {
     type: GoogleUserDto,
   })
   @ApiResponse({ status: 401, description: 'Authentication failed' })
-  async googleAuthRedirect(
-    @Request() req,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async googleAuthRedirect(@Request() req, @Res() res: Response) {
     const result = await this.authService.googleLogin(req);
 
     res.cookie('access_token', result.accessToken, {
       httpOnly: true,
     });
 
-    return result;
+    return res.redirect('http://localhost:3001/dashboard');
   }
 }
