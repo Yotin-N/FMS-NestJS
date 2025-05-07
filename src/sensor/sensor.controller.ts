@@ -54,7 +54,7 @@ class SensorDto {
   @ApiProperty({ example: 'SN12345678' })
   serialNumber: string;
 
-  @ApiProperty({ enum: SensorType, example: SensorType.PH })
+  @ApiProperty({ enum: SensorType, example: SensorType.pH })
   type: SensorType;
 
   @ApiProperty({ example: '123e4567-e89b-12d3-a456-426614174000' })
@@ -155,7 +155,7 @@ export class SensorController {
         value: {
           name: 'pH Sensor 1',
           serialNumber: 'SN12345678',
-          type: SensorType.PH,
+          type: SensorType.pH,
           deviceId: '123e4567-e89b-12d3-a456-426614174000',
           unit: 'pH',
           minValue: 0,
@@ -168,7 +168,7 @@ export class SensorController {
         value: {
           name: 'Temperature Sensor 1',
           serialNumber: 'SN87654321',
-          type: SensorType.TEMP,
+          type: SensorType.TempA,
           deviceId: '123e4567-e89b-12d3-a456-426614174000',
           unit: '°C',
           minValue: 0,

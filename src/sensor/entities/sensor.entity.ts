@@ -12,14 +12,16 @@ import { Device } from '../../device/entities/device.entity';
 import { SensorReading } from '../../sensor-reading/entities/sensor-reading.entity';
 
 export enum SensorType {
-  PH = 'PH',
-  TEMP = 'TEMP',
-  SALINITY = 'SALINITY',
+  TempA = 'TempA',
+  TempB = 'TempB',
+  TempC = 'TempC',
+  pH = 'pH',
   DO = 'DO',
+  Saltlinity = 'Saltlinity',
+  NHx = 'NHx',
+  EC = 'EC',
+  TDS = 'TDS',
   ORP = 'ORP',
-  AMMONIA = 'AMMONIA',
-  NITRITE = 'NITRITE',
-  NITRATE = 'NITRATE',
 }
 
 @Entity()
