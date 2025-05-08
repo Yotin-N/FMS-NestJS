@@ -171,12 +171,21 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Authentication failed' })
   async googleAuthRedirect(@Request() req, @Res() res: Response) {
-    const result = await this.authService.googleLogin(req);
+    try {
+      const result = await this.authService.googleLogin(req);
 
-    res.cookie('access_token', result.accessToken, {
-      httpOnly: true,
-    });
+      res.cookie('access_token', result.accessToken, {
+        httpOnly: true,
+      });
 
-    return res.redirect('http://localhost:3001/dashboard');
+      return res.redirect(
+        `http://localhost:3001/auth/google/callback?token=${encodeURIComponent(result.accessToken)}&userId=${result.user.id}`,
+      );
+    } catch (error) {
+      console.error('Google auth error:', error);
+      return res.redirect(
+        `http://localshot:3001/login?error=${encodeURIComponent('Google authentication failed')}`,
+      );
+    }
   }
 }
