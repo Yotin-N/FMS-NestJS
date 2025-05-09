@@ -1,4 +1,3 @@
-// app.module.ts
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -11,6 +10,7 @@ import { DeviceModule } from './device/device.module';
 import { SensorModule } from './sensor/sensor.module';
 import { SensorReadingModule } from './sensor-reading/sensor-reading.module';
 import { MqttModule } from './mqtt/mqtt.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import * as fs from 'fs';
 
 @Module({
@@ -48,6 +48,7 @@ import * as fs from 'fs';
     SensorModule,
     SensorReadingModule,
     MqttModule,
+    DashboardModule,
   ],
   controllers: [AppController],
   providers: [AppService],
