@@ -101,7 +101,7 @@ async function bootstrap() {
   // Get origin configuration from environment variables or use default values
   const corsOrigin = configService.get<string>(
     'CORS_ORIGIN',
-    'http://localhost:3000,http://localhost:3001',
+    'http://localhost:3000,http://localhost:3001,https://farm-management-theta.vercel.app',
   );
 
   // Parse multiple origins if provided as comma-separated string
