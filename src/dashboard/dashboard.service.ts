@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-// src/dashboard/dashboard.service.ts
+
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { SensorReading } from '../sensor-reading/entities/sensor-reading.entity';
-import { Sensor } from '../sensor/entities/sensor.entity';
+import { Sensor, SensorType } from '../sensor/entities/sensor.entity';
 import { Device } from '../device/entities/device.entity';
 import { Farm } from '../farm/entities/farm.entity';
 
@@ -19,7 +19,7 @@ export class DashboardService {
     private readonly sensorRepository: Repository<Sensor>,
     @InjectRepository(SensorReading)
     private readonly sensorReadingRepository: Repository<SensorReading>,
-  ) {}
+  ) { }
 
   async getDashboardSummary(farmId: string) {
     // Verify farm exists
@@ -297,4 +297,71 @@ export class DashboardService {
       })
       .sort((a, b) => a.time.getTime() - b.time.getTime());
   }
+
+  async getSensorRealtimeData(
+    farmId: string,
+    sensorType: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<any> {
+    const farm = await this.farmRepository.findOne({
+      where: { id: farmId },
+    });
+
+    if (!farm) {
+      throw new NotFoundException(`Farm with ID "${farmId}" not found`);
+    }
+
+    // Get all devices for this farm
+    const devices = await this.deviceRepository.find({
+      where: { farmId, isActive: true },
+    });
+
+    if (devices.length === 0) {
+      return [];
+    }
+
+    const deviceIds = devices.map((device) => device.id);
+
+    // Convert string to SensorType enum
+    const sensorTypeEnum = sensorType.toUpperCase() as SensorType;
+
+    // Get all sensors of the specified type
+    const sensors = await this.sensorRepository.find({
+      where: {
+        deviceId: In(deviceIds),
+        isActive: true,
+        type: sensorTypeEnum,
+      },
+    });
+
+    if (sensors.length === 0) {
+      return [];
+    }
+
+    const sensorIds = sensors.map((sensor) => sensor.id);
+
+    // Get readings for these sensors within the time range
+    const readings = await this.sensorReadingRepository
+      .createQueryBuilder('reading')
+      .select('reading.sensorId', 'sensorId')
+      .addSelect('reading.value', 'value')
+      .addSelect('reading.timestamp', 'timestamp')
+      .where('reading.sensorId IN (:...sensorIds)', { sensorIds })
+      .andWhere('reading.timestamp BETWEEN :startDate AND :endDate', {
+        startDate,
+        endDate,
+      })
+      .orderBy('reading.timestamp', 'ASC')
+      .getRawMany();
+
+    // Return the readings as-is, without aggregation, for real-time display
+    return readings.map(reading => ({
+      time: reading.timestamp,
+      value: reading.value,
+      sensorId: reading.sensorId
+    }));
+  }
 }
+
+
