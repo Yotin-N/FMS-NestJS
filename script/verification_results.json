@@ -1,0 +1,1214 @@
+{
+  "timestamp": "2025-05-13T04:06:12.463Z",
+  "farmId": "2f236a6b-2446-473d-9f1f-0fe75dbc35cc",
+  "totalSensors": 200,
+  "sensorsWithData": 0,
+  "sensorsWithoutData": 200,
+  "expectedReadingsPerSensor": 1,
+  "totalExpectedReadings": 200,
+  "totalActualReadings": 0,
+  "missingReadings": [
+    {
+      "sensorId": "14ccf240-648d-4cd0-bb77-8b6d2e2e19da",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "ce170514-8e2c-4c80-865a-2141c2c0b79e",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "ea6243bd-16e8-4ee6-9a75-b1e84db1b173",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "70455831-6ef8-472d-962c-3ef171781ac3",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "13bb7280-e05d-40a9-a0a3-1e289b47af42",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "e8f781de-0b43-4a1b-959d-d47cfd5d988c",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "048ac3a0-49fb-48ad-a563-63e43d0cba30",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "064423ce-1b81-41a0-bee1-9fa926814695",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "20278dca-34ea-4ef3-9d53-8dd7258d8075",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "6a4debfb-a375-4279-8527-bb6dfe4ad498",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "ef95268a-3209-4ab5-b7ae-f3b76bdb0ee6",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "d762c7fc-643e-4087-9e43-01f0c791df13",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "94f43f5c-a1a7-4b48-b396-2a183e5c87f4",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "739a71dc-f456-44b9-b52e-265668511df3",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "f001ece5-2d2d-45ba-8526-ba4a08768c09",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "69d01657-1f10-4629-9a77-efbc9237d5d3",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "0404207f-fcfc-4f52-9e3c-67dc2bfa62bb",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "e6d54bbd-5303-4a82-9287-ae153f3af024",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "f9a6b74c-200f-4445-8016-1ec218de83bb",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "b3058044-048c-42f5-b31b-56b4d0733730",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "131c9f95-df12-429f-84c8-9c8e106f7420",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "1f2b3ef1-6406-4d16-a20b-bd9d0f75c01f",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "f445395d-dcd6-48ae-ae2a-38a041df92fb",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "a19c2ad7-a8b8-42e4-809e-2d5522b75845",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "9ae99366-e5fb-4c27-b8dc-e4759998928e",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "b5c6ba62-f4d2-4f43-8983-44020efef302",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "16d82654-2e0a-4a31-95d5-2029cd2b3a78",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "5eef56da-fb46-4571-b0b1-df7e7df5eabc",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "b0dc5f49-f80b-4c94-8784-78a244489443",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "b29ee153-0841-428a-be06-fefbb27f23a6",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "0a88d041-8214-43ee-88c0-8f5850b64f7e",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "da8aa16a-80cb-49f7-a93b-9cc0d977159d",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "6c4ecd87-a355-42c0-bd28-13dbc7aaa186",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "ce3ce511-8c98-42c0-813f-fa92b23d6b14",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "075c0562-5c64-4f1d-997f-e94018ab292d",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "45e91f7f-1332-43c3-b0e8-31f073961ed8",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "2410be0c-8c34-4835-aba8-fcee0355bcb3",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "87220838-946c-4a29-8ea1-627195424bb0",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "cbc88e39-5c81-4f7f-ab73-ae9bdd2402af",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "40756022-6c55-41dc-82b9-b2f860189f13",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "04864132-2fb3-40d0-a6ba-0ae6aea7bafe",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "ca486411-4099-4515-b60c-92c5b71a149f",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "117d5871-793a-44b6-88df-90db853ffaec",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "4bce5578-1838-4750-bf47-9859ec4abc79",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "4f387241-db86-4c59-9af9-4d9668a2287d",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "be793adb-adf9-4f5a-8920-527d97224d7d",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "902a9941-da7b-40e4-b5f2-a739597937c6",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "72a952f0-ce85-4876-8998-02ba17ff2b96",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "85808227-9ed1-411c-b843-80322cd504ac",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "8f6c573d-60e7-4ffe-bebe-0824c7c85ff8",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "0544d615-7669-4f83-9e19-6e063ab656cb",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "894170d9-c73e-49cd-87ea-3ef0e73da448",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "a954f406-b34f-446c-ab80-918ec3345c2a",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "d739d73b-b503-488f-a6a4-cc5c3fb909cb",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "a6dcfd5d-3721-4b64-ad93-2cad1b7641d9",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "15c88ad2-851a-4c2e-b0f9-8911582dea16",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "211682f2-a5d1-4a56-9a88-b431da60ce3e",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "53369d44-c960-4bb5-bb6e-15a0b91ebaf5",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "a2f1c17f-536c-4022-8968-6c76ac95b9b1",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "82f5bd70-7006-408d-b250-da44b03f38eb",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "b7a96cf2-cd60-4874-8aa7-e3d890c583e2",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "54196dd6-aa93-4533-9096-9506079d9614",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "a8c5fbe3-e7b0-4df4-ad79-70e6cf7bb09b",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "31953f80-6ac8-4ea5-beb2-2fa6970c61e8",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "c275f470-e29a-47d7-a9d3-78fc1cddf1e0",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "eaa1b9b4-537a-4483-b879-9902beecc86d",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "4be74c98-469e-43bb-b8e6-4ce433f06a6f",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "126232c8-13dd-4b0b-877c-affe97d555a7",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "cb1bd7e9-df71-4a0c-a69d-368da8f0491c",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "48e47c22-1040-4acb-896c-49dafcf37f81",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "7113dd25-8645-4e3f-9e3a-8f37f6121a66",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "a7d8c9fd-1700-40a7-afc7-883231b73006",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "63e2e5c7-62d0-49fd-abee-45faca9c9bc5",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "f88636dc-0274-469a-b07e-d1963524499e",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "a6dd74cd-9ec5-41a3-862a-e489051a02ba",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "ec74f8bd-f95a-4175-a229-44683673eb48",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "000146da-3020-4cc4-9fa7-5724ba3e28c1",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "4c0ecab7-3d09-44b9-914b-95a177546b4c",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "adb95bc2-c658-45d5-8d1f-f7a9925188df",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "e2f873e9-1a3f-4005-b498-70fccb98a43c",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "6ad7b92c-54fb-4687-a7b6-3961037c1721",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "5f347971-99e4-47a4-b47d-37035d64ffdb",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "8343dcf6-d29f-4941-8b41-ecc0ed75f77f",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "4f8320d1-7aa5-4dec-b6ad-838c9ac64f2d",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "9af3c837-7bfb-4a58-afe6-56629a08768b",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "9829bd54-bcb3-47be-9e4d-71b8fbece098",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "2b926bc3-28ca-43d0-9f8e-d19e331730bb",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "e3631777-c446-4d57-b618-e0da9f2cc194",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "b9a0e767-b044-4e57-be7b-3b678bff0675",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "d3afddf5-0c92-4ba6-b1a5-27e662396a4b",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "090441b7-8a31-4d97-a4c2-1b0ec0bf5c84",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "1e77954b-0318-4a3b-98f1-9eca33844580",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "59791a6f-c601-46ce-8f69-c0a7d1036f42",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "ec193538-1aeb-48b3-823c-7744b408fad0",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "22ad8f96-c1f2-4854-bbb5-e3d03fd59d9c",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "0ec2b0d7-68c0-457c-9aa4-3dc12d965b90",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "afa3fb57-1e57-4479-8d5a-7e3d20341993",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "47dccf64-5be4-4fe9-be44-2966c5f21ab6",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "4eaa8868-06c7-4211-aa97-a063b8dfc873",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "2139fdaa-27de-4119-94e3-f536e4d37f11",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "ee448095-46c1-485a-83f8-0d47422aef06",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "64789fb9-9a0e-450d-97a6-722370377686",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "2380c667-5ef9-454a-9e85-b8b7f0504a08",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "e01cee68-ae31-432f-bc00-8615549dfe4b",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "c3dc4d51-cdff-4d07-88d6-d442970a88ff",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "c305c43d-df5f-45d7-bb2a-28162cc85f52",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "ec10f439-531e-49b0-9268-af31bd897756",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "3bf9923f-b9ba-42e8-a87d-84da202aa32d",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "8ef37fda-7c15-427b-b666-008f1aecdeb9",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "2da84721-addb-4a7a-a352-4f8d928405c2",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "7e922fa1-0e4d-47b0-b5d6-f6336b46e0ef",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "53eae23c-3894-44df-ac97-3a07bc869ff3",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "3273a001-30c0-4afb-8dc0-a2315fd33c62",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "9c713414-5827-4a2a-a4f9-99afcd21ed64",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "a62e875e-c22c-4159-b41b-0ad6c4456877",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "0f15b9c3-ebac-493a-9ea7-e4de1dfac5d1",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "e6862313-5aec-47de-ad40-542d0ac77a92",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "fdb4865c-c944-401b-8923-e823f07531c5",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "72bf3dd7-b8fd-4fa3-b017-d9fbf6232cb9",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "54c14578-b6dd-4d39-becb-6df7529046f9",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "0588efbb-a52e-41b7-beac-d89ff89e05ba",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "1e82e6f9-37ab-45fa-bf22-67ffcaf3cf86",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "4b133439-430b-4c74-bba1-ea1fe793a1d0",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "8b0b775f-98ad-43fb-acdb-6d3809156835",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "42f207e3-a404-4adc-9c33-28d4ce749267",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "68f3f7b5-6dbf-4934-8c9f-2d2dd0ad3c98",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "0f7bcdd0-c0e7-462d-8927-4291e4f3da74",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "ca31eb8e-1b2d-4650-b17e-b15e8179f100",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "7fca4f15-b0d5-42d7-90c3-8d749493a089",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "6d0c36b7-1d7a-4de3-8110-e68e62c61ba4",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "6bbf6355-b34c-4965-bcc2-af6f25466395",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "bcfd8513-ce84-4698-a28e-49ea35a4b1fa",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "ac3fcaf8-1ac9-49d5-a914-1426fdaec3a1",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "8b8bf715-1374-4939-8ce4-f68a3e6873d0",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "3e615f99-c0f0-4853-bd46-8d6ba7f6587a",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "c52adc93-ab3e-4f9e-9fe4-0dff559d9624",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "95f06a4e-6056-483e-9ce2-bd2b3b2ccf75",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "6e818722-f64c-494d-907a-ad168d9158f7",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "435c7da7-19a8-4d1d-8e12-d249c0bcc3c3",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "f5430acd-cbd1-4a54-b356-1d3788158cd2",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "726f9383-1ad8-4afa-9462-4f5068c63248",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "68ae0833-7ba0-418f-9dec-362f3101276d",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "369fa7d6-455c-4676-b945-0427f3b6f144",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "fc775f87-3a74-44f0-b050-b0dbdcfa268f",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "3dd6ce56-5d0a-401e-8486-4dd63c74674b",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "0100185f-8d0a-4135-8304-474c0100e1c6",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "b45bf83c-92fc-46b4-9524-b73214854d41",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "4412198e-8b1a-44d1-b4a7-bbc14dded4e0",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "5d03ebda-96bf-476e-9bbe-1222aa9b34ee",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "b457771a-fe63-4bef-b6f4-dd4236964a05",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "efbd6596-9d9f-4ddb-b788-c1c739117b85",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "0ad2134f-f117-4a81-a8d0-033747b5565b",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "750c9a6b-1187-4dcf-afba-a0b86dcd3671",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "f703a0f2-8a4a-4fcc-b14b-3f86885080fa",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "c6f6c59e-d252-4d18-bd83-8e3c1d462c0b",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "094f5a87-a1e2-4701-adf2-8b95237f5782",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "e896b0a7-e0e9-4369-ae8f-f76e28b58ac5",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "32368938-53e0-4ad5-9aae-20acf57aa27e",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "a80270c6-eabb-4987-a052-8b075d1644b5",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "06da46fe-a799-4684-9e16-d951fab41208",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "4dc91163-e2d0-45b4-b6e9-f3ac00c96703",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "6fa9384b-1c2f-4396-92de-386861a40bda",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "3f910379-62ea-4f39-a82e-2d0c1b51410e",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "588f9157-9ca1-401f-9e6b-bcdda5bd9736",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "5e6e4226-0898-4ca3-9269-7df91e74263d",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "0d08f7dd-b1c4-408c-bab4-15a257ddd618",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "f858d6d8-be4c-4efc-9de5-ded101a678d0",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "ef2631e6-29be-414c-9ae8-411334dfbb80",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "be67d8a9-83c4-49fc-8e79-6e4550231dd4",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "6319773b-a62c-40d9-8d3e-d0e5df35be43",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "3e58a997-a160-4ce3-b6ea-003410725409",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "e9496ea4-bae9-45f2-9a51-8f6c4b53571f",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "350e6500-169b-408a-8c16-9eac1fae4524",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "e566d46a-cfdd-42d2-9502-972d544cb6a1",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "cc637f74-1e78-49d3-b860-0c33d0aa5539",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "3ab65575-341f-4dba-8879-49a2b442ce98",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "9e827d84-422b-4469-8d38-06a8fd432260",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "133aa663-fde4-408c-b7a7-589db0ac8307",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "becd8ee6-96c3-47e3-b5c5-24494e49ecdd",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "8504d47e-0fbe-4545-961a-9932aad44206",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "cb33331e-1da2-44c9-9e00-c64355104733",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "24b5af57-7776-47a4-a830-1a012c546907",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "7d87404a-1a90-41f7-bef1-23f60e050b56",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "06fa8489-b236-43fd-ac9d-2b0a55a161d9",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "93895bc5-b842-467e-ac9c-cd7a831a5b58",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "e8b4c245-3574-41c5-9bb9-f41079752686",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "007aa888-929f-42a4-ac6f-787f45c6e25e",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "f9c93141-cbcd-405b-8d50-ea212869b95d",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "0b728c06-5048-4581-8b32-4c48d7e3ad8e",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "56d34757-1424-473d-afd0-006d20239bea",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "88db648c-3a62-4947-b911-665e7f385169",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "a1c28bfe-0ddb-4286-9bfd-4fcf6541cdfe",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "e27cd163-5648-49ca-aca5-49d751c62b94",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "c959239f-7fc1-4b79-bce9-a920b18a5e50",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "506c3bc0-0e4a-4363-a4ba-12631f63a58a",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "833c7121-e5c6-41f9-95ef-e3867a3cc980",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "425f4acd-ad54-4b1c-9752-6846b020e846",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "1b439b71-294d-475a-8995-79f94f015b5b",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "c7626386-767b-42b1-9430-6fa449929e12",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    },
+    {
+      "sensorId": "210887c3-504c-4b5b-bc98-ede590fa09be",
+      "expected": 1,
+      "actual": 0,
+      "missing": 1
+    }
+  ],
+  "extraReadings": [],
+  "success": false
+}

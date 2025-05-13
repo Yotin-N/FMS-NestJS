@@ -8,7 +8,9 @@ import {
   Get,
   Body,
   Logger,
+  UnauthorizedException
 } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { GoogleAuthGuard } from './google-auth.guard';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './local-auth.guard';
@@ -61,7 +63,9 @@ class GoogleUserDto {
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService,
+    private readonly jwtService: JwtService
+  ) { }
 
   @UseGuards(LocalAuthGuard)
   @Post('/login')
@@ -107,6 +111,54 @@ export class AuthController {
       ...result,
     };
   }
+
+  //Refresh Token Endpoint
+  @Post('/refresh-token')
+  @ApiOperation({ summary: 'Refresh access token' })
+  @ApiResponse({
+    status: 200,
+    description: 'Return a new access token',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthrized - invalid or expried token',
+  })
+  async refreshToken(@Body() refreshTokenDto: { token: string }) {
+    try {
+      const decoded = this.jwtService.verify(refreshTokenDto.token);
+
+      const tokenIssuedAt = decoded.iat * 1000;
+      const now = Date.now();
+      const tokenAge = now - tokenIssuedAt;
+      const maxRefreshAge = 7 * 24 * 60 * 60 * 1000;
+
+      if (tokenAge > maxRefreshAge) {
+        throw new UnauthorizedException('Token too old to refresh');
+
+        const user = {
+          userId: decoded.sub,
+          email: decoded.email,
+          role: decoded.role
+        };
+
+        const result = this.authService.login(
+          user
+        );
+
+        return {
+          accessToken: result.accessToken,
+          user: result.user,
+        };
+      }
+    } catch (error) {
+      throw new UnauthorizedException('Invalid or expired token')
+    }
+  }
+
+
+
+
+
 
   @Post('/direct-login')
   @ApiOperation({ summary: 'Direct login without passport (for debugging)' })
