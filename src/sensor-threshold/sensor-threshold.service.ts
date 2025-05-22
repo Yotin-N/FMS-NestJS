@@ -1,3 +1,5 @@
+// src/sensor-threshold/sensor-threshold.service.ts - ENHANCED VERSION
+
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -57,7 +59,7 @@ export class SensorThresholdService {
 
         return {
             severity: 'unknown',
-            color: '#grey',
+            color: '#9e9e9e',
             label: 'Out of Range',
             notification: false
         };
@@ -77,6 +79,7 @@ export class SensorThresholdService {
         );
     }
 
+    // ENHANCED: Better default threshold configurations
     private getDefaultThresholdConfig(sensorType: string) {
         const configs = {
             'pH': [
@@ -118,8 +121,65 @@ export class SensorThresholdService {
                 { severityLevel: SeverityLevel.WARNING, minValue: 20, maxValue: 24, colorCode: '#ff9800', label: 'Cool' },
                 { severityLevel: SeverityLevel.WARNING, minValue: 32, maxValue: 35, colorCode: '#ff9800', label: 'Warm' },
                 { severityLevel: SeverityLevel.NORMAL, minValue: 24, maxValue: 32, colorCode: '#4caf50', label: 'Optimal' }
+            ],
+            'Saltlinity': [
+                { severityLevel: SeverityLevel.CRITICAL, minValue: null, maxValue: 10, colorCode: '#f44336', label: 'Too Low' },
+                { severityLevel: SeverityLevel.CRITICAL, minValue: 40, maxValue: null, colorCode: '#f44336', label: 'Too High' },
+                { severityLevel: SeverityLevel.WARNING, minValue: 10, maxValue: 15, colorCode: '#ff9800', label: 'Low' },
+                { severityLevel: SeverityLevel.WARNING, minValue: 35, maxValue: 40, colorCode: '#ff9800', label: 'High' },
+                { severityLevel: SeverityLevel.NORMAL, minValue: 15, maxValue: 35, colorCode: '#4caf50', label: 'Optimal' }
+            ],
+            'NHx': [
+                { severityLevel: SeverityLevel.CRITICAL, minValue: 5, maxValue: null, colorCode: '#f44336', label: 'Toxic' },
+                { severityLevel: SeverityLevel.WARNING, minValue: 2, maxValue: 5, colorCode: '#ff9800', label: 'High' },
+                { severityLevel: SeverityLevel.NORMAL, minValue: null, maxValue: 2, colorCode: '#4caf50', label: 'Safe' }
+            ],
+            'EC': [
+                { severityLevel: SeverityLevel.CRITICAL, minValue: 3000, maxValue: null, colorCode: '#f44336', label: 'Too High' },
+                { severityLevel: SeverityLevel.WARNING, minValue: 2000, maxValue: 3000, colorCode: '#ff9800', label: 'High' },
+                { severityLevel: SeverityLevel.NORMAL, minValue: null, maxValue: 2000, colorCode: '#4caf50', label: 'Normal' }
+            ],
+            'TDS': [
+                { severityLevel: SeverityLevel.CRITICAL, minValue: 1500, maxValue: null, colorCode: '#f44336', label: 'Too High' },
+                { severityLevel: SeverityLevel.WARNING, minValue: 1000, maxValue: 1500, colorCode: '#ff9800', label: 'High' },
+                { severityLevel: SeverityLevel.NORMAL, minValue: null, maxValue: 1000, colorCode: '#4caf50', label: 'Normal' }
+            ],
+            'ORP': [
+                { severityLevel: SeverityLevel.CRITICAL, minValue: null, maxValue: -100, colorCode: '#f44336', label: 'Too Low' },
+                { severityLevel: SeverityLevel.CRITICAL, minValue: 400, maxValue: null, colorCode: '#f44336', label: 'Too High' },
+                { severityLevel: SeverityLevel.WARNING, minValue: -100, maxValue: 0, colorCode: '#ff9800', label: 'Low' },
+                { severityLevel: SeverityLevel.WARNING, minValue: 300, maxValue: 400, colorCode: '#ff9800', label: 'High' },
+                { severityLevel: SeverityLevel.NORMAL, minValue: 0, maxValue: 300, colorCode: '#4caf50', label: 'Normal' }
             ]
         };
-        return configs[sensorType] || [];
+
+        return configs[sensorType] || [
+            { severityLevel: SeverityLevel.NORMAL, minValue: null, maxValue: null, colorCode: '#4caf50', label: 'Normal' }
+        ];
+    }
+
+    // ENHANCED: Method to ensure thresholds exist for a farm and sensor type
+    async ensureThresholdsExist(farmId: string, sensorType: string): Promise<SensorThreshold[]> {
+        // Check if thresholds already exist
+        const existingThresholds = await this.thresholdRepository.find({
+            where: { farmId, sensorType }
+        });
+
+        if (existingThresholds.length > 0) {
+            return existingThresholds;
+        }
+
+        // Create default thresholds if none exist
+        const defaultConfigs = this.getDefaultThresholdConfig(sensorType);
+        const thresholds = defaultConfigs.map(config =>
+            this.thresholdRepository.create({
+                ...config,
+                farmId,
+                sensorType,
+                notificationEnabled: true
+            })
+        );
+
+        return await this.thresholdRepository.save(thresholds);
     }
 }

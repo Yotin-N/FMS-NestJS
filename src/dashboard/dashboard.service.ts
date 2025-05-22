@@ -7,8 +7,14 @@ import { SensorReading } from '../sensor-reading/entities/sensor-reading.entity'
 import { Sensor, SensorType } from '../sensor/entities/sensor.entity';
 import { Device } from '../device/entities/device.entity';
 import { Farm } from '../farm/entities/farm.entity';
-// STEP 1: Add the SensorThresholdService import
 import { SensorThresholdService } from '../sensor-threshold/sensor-threshold.service';
+import {
+  ThresholdRange,
+  SensorTypeData,
+  DashboardSummary,
+  SensorChartData,
+  RealtimeDataPoint
+} from './types/dashboard.types';
 
 @Injectable()
 export class DashboardService {
@@ -21,11 +27,10 @@ export class DashboardService {
     private readonly sensorRepository: Repository<Sensor>,
     @InjectRepository(SensorReading)
     private readonly sensorReadingRepository: Repository<SensorReading>,
-    // STEP 2: Add SensorThresholdService injection
     private readonly sensorThresholdService: SensorThresholdService,
   ) { }
 
-  async getDashboardSummary(farmId: string) {
+  async getDashboardSummary(farmId: string): Promise<DashboardSummary> {
     // Verify farm exists
     const farm = await this.farmRepository.findOne({
       where: { id: farmId },
@@ -75,12 +80,12 @@ export class DashboardService {
     // Get latest values for each sensor to calculate averages by type
     const latestReadings = await this.getLatestReadingsForSensors(sensorIds);
 
-    // STEP 3: Get thresholds for the farm
+    // Get thresholds for the farm
     const thresholds = await this.sensorThresholdService.getThresholdsByFarm(farmId);
     const thresholdsByType = this.groupThresholdsBySensorType(thresholds);
 
-    // STEP 4: Replace calculateAverageByType with calculateAverageByTypeWithSeverity
-    const averagesByType = this.calculateAverageByTypeWithSeverity(
+    // Use the enhanced method with proper threshold integration
+    const averagesByType = await this.calculateAverageByTypeWithSeverity(
       sensors,
       latestReadings,
       thresholdsByType
@@ -90,88 +95,191 @@ export class DashboardService {
       latestTimestamp: latestReadingResult?.latestTimestamp || null,
       averages: averagesByType,
       activeSensorsCount: sensors.length,
-      // STEP 5: Add thresholds to return object
       thresholds: thresholdsByType
     };
   }
 
-  async getSensorData(farmId: string, hours: number = 24, sensorType?: string) {
-    // Verify farm exists
-    const farm = await this.farmRepository.findOne({
-      where: { id: farmId },
-    });
-
-    if (!farm) {
-      throw new NotFoundException(`Farm with ID "${farmId}" not found`);
-    }
-
-    // Get all devices for this farm
-    const devices = await this.deviceRepository.find({
-      where: { farmId, isActive: true },
-    });
-
-    if (devices.length === 0) {
-      return [];
-    }
-
-    const deviceIds = devices.map((device) => device.id);
-
-    // Build sensor query
-    let sensorQuery = this.sensorRepository
-      .createQueryBuilder('sensor')
-      .where('sensor.deviceId IN (:...deviceIds)', { deviceIds })
-      .andWhere('sensor.isActive = :isActive', { isActive: true });
-
-    // Add sensor type filter if provided
-    if (sensorType) {
-      sensorQuery = sensorQuery.andWhere('sensor.type = :type', {
-        type: sensorType,
-      });
-    }
-
-    const sensors = await sensorQuery.getMany();
-
-    if (sensors.length === 0) {
-      return [];
-    }
-
-    // Get sensor IDs for each type to group them
+  // Enhanced method with proper TypeScript typing
+  private async calculateAverageByTypeWithSeverity(
+    sensors: Sensor[],
+    readings: Record<string, SensorReading>,
+    thresholdsByType: Record<string, any[]>
+  ): Promise<Record<string, SensorTypeData>> {
     const sensorsByType = sensors.reduce(
       (acc, sensor) => {
         if (!acc[sensor.type]) {
           acc[sensor.type] = [];
         }
-        acc[sensor.type].push(sensor.id);
+        acc[sensor.type].push(sensor);
         return acc;
       },
-      {} as Record<string, string[]>,
+      {} as Record<string, Sensor[]>,
     );
 
-    // Calculate time range
-    const endDate = new Date();
-    const startDate = new Date(endDate.getTime() - hours * 60 * 60 * 1000);
+    const averagesByType: Record<string, SensorTypeData> = {};
 
-    // Get time series data for each sensor type
-    const result = await Promise.all(
-      Object.entries(sensorsByType).map(async ([type, sensorIds]) => {
-        const readings = await this.getSensorReadingsInTimeRange(
-          sensorIds,
-          startDate,
-          endDate,
+    for (const [type, sensorsOfType] of Object.entries(sensorsByType)) {
+      let sum = 0;
+      let count = 0;
+      let unit = '';
+      const values: number[] = [];
+      let latestReading: SensorReading | null = null;
+      let latestTimestamp: Date | null = null;
+
+      // Calculate average and collect values
+      for (const sensor of sensorsOfType) {
+        const reading = readings[sensor.id];
+        if (reading) {
+          sum += reading.value;
+          count++;
+          values.push(reading.value);
+          if (!unit && sensor.unit) {
+            unit = sensor.unit;
+          }
+
+          // Keep track of the most recent reading
+          if (!latestReading || new Date(reading.timestamp) > new Date(latestReading.timestamp)) {
+            latestReading = reading;
+            latestTimestamp = reading.timestamp;
+          }
+        }
+      }
+
+      const average = count > 0 ? sum / count : null;
+
+      // Get or create default thresholds if none exist
+      let sensorThresholds = thresholdsByType[type] || [];
+
+      if (sensorThresholds.length === 0) {
+        // Create default thresholds for this sensor type
+        sensorThresholds = await this.createDefaultThresholds(type);
+      }
+
+      // Calculate severity and threshold ranges
+      let severity = { severity: 'unknown', color: '#9e9e9e', label: 'No Data', notification: false };
+      let thresholdRanges: ThresholdRange[] = [];
+
+      if (average !== null && sensorThresholds.length > 0) {
+        severity = this.sensorThresholdService.calculateSeverity(
+          average,
+          sensorThresholds
         );
 
-        return {
-          type,
-          data: this.aggregateReadingsByTime(readings, startDate, endDate),
-        };
-      }),
-    );
+        thresholdRanges = this.getThresholdRanges(sensorThresholds);
+      }
 
-    return result;
+      // Calculate proper min/max values for gauge scaling
+      const { minValue, maxValue } = this.calculateGaugeRange(
+        thresholdRanges,
+        values,
+        type
+      );
+
+      averagesByType[type] = {
+        // Core sensor data
+        average,
+        latestValue: latestReading ? latestReading.value : average, // Use latest reading as current value
+        unit,
+        sensorsCount: sensorsOfType.length,
+        sensorsWithDataCount: count,
+        values,
+
+        // Timestamp information
+        latestTimestamp,
+
+        // Severity and status
+        severity: severity.severity,
+        severityColor: severity.color,
+        severityLabel: severity.label,
+
+        // Gauge configuration
+        thresholdRanges,
+        gaugeMin: minValue,
+        gaugeMax: maxValue,
+        minValue, // Keep both for compatibility
+        maxValue, // Keep both for compatibility
+
+        // Additional metadata
+        sourceSensorName: sensorsOfType[0]?.name || `${type} Sensor`,
+      };
+    }
+
+    return averagesByType;
   }
 
+  // Helper method to create default thresholds
+  private async createDefaultThresholds(sensorType: string): Promise<any[]> {
+    try {
+      // Get default thresholds from the threshold service
+      return await this.sensorThresholdService.getDefaultThresholds(sensorType);
+    } catch (error) {
+      console.warn(`Failed to get default thresholds for ${sensorType}:`, error);
+      return [];
+    }
+  }
+
+  // Enhanced gauge range calculation
+  private calculateGaugeRange(
+    thresholdRanges: ThresholdRange[],
+    values: number[],
+    sensorType: string
+  ): { minValue: number; maxValue: number } {
+    // First, try to use threshold ranges
+    if (thresholdRanges.length > 0) {
+      const validMinValues = thresholdRanges
+        .map(r => r.min)
+        .filter((v): v is number => v !== null && v !== undefined);
+
+      const validMaxValues = thresholdRanges
+        .map(r => r.max)
+        .filter((v): v is number => v !== null && v !== undefined);
+
+      if (validMinValues.length > 0 && validMaxValues.length > 0) {
+        return {
+          minValue: Math.min(...validMinValues),
+          maxValue: Math.max(...validMaxValues)
+        };
+      }
+    }
+
+    // Fallback to value-based calculation
+    if (values.length > 0) {
+      const dataMin = Math.min(...values);
+      const dataMax = Math.max(...values);
+      const range = dataMax - dataMin;
+      const padding = range * 0.1; // 10% padding
+
+      return {
+        minValue: Math.max(0, dataMin - padding),
+        maxValue: dataMax + padding
+      };
+    }
+
+    // Final fallback to sensor-type specific defaults
+    return this.getDefaultRangeForSensorType(sensorType);
+  }
+
+  // Default ranges for different sensor types
+  private getDefaultRangeForSensorType(sensorType: string): { minValue: number; maxValue: number } {
+    const defaults: Record<string, { minValue: number; maxValue: number }> = {
+      'pH': { minValue: 0, maxValue: 14 },
+      'DO': { minValue: 0, maxValue: 20 },
+      'Temperature': { minValue: 0, maxValue: 50 },
+      'TempA': { minValue: 0, maxValue: 50 },
+      'TempB': { minValue: 0, maxValue: 50 },
+      'TempC': { minValue: 0, maxValue: 50 },
+      'Saltlinity': { minValue: 0, maxValue: 50 },
+      'NHx': { minValue: 0, maxValue: 10 },
+      'EC': { minValue: 0, maxValue: 5000 },
+      'TDS': { minValue: 0, maxValue: 2000 },
+      'ORP': { minValue: -500, maxValue: 500 },
+    };
+
+    return defaults[sensorType] || { minValue: 0, maxValue: 100 };
+  }
+
+  // Helper methods
   private async getLatestReadingsForSensors(sensorIds: string[]) {
-    // For each sensor, get the latest reading
     const latestReadings = await Promise.all(
       sensorIds.map(async (sensorId) => {
         const reading = await this.sensorReadingRepository
@@ -195,110 +303,6 @@ export class DashboardService {
     );
   }
 
-  // STEP 6: Replace the old calculateAverageByType method with this enhanced version
-  private calculateAverageByTypeWithSeverity(
-    sensors: Sensor[],
-    readings: Record<string, SensorReading>,
-    thresholdsByType: Record<string, any[]>
-  ) {
-    const sensorsByType = sensors.reduce(
-      (acc, sensor) => {
-        if (!acc[sensor.type]) {
-          acc[sensor.type] = [];
-        }
-        acc[sensor.type].push(sensor);
-        return acc;
-      },
-      {} as Record<string, Sensor[]>,
-    );
-
-    // Define the threshold range interface
-    interface ThresholdRange {
-      severity: string;
-      min: number | null;
-      max: number | null;
-      color: string;
-      label: string;
-    }
-
-    const averagesByType = Object.entries(sensorsByType).reduce(
-      (acc, [type, sensorsOfType]) => {
-        let sum = 0;
-        let count = 0;
-        let unit = '';
-        const values: number[] = []; // Explicitly type as number array
-
-        sensorsOfType.forEach((sensor) => {
-          const reading = readings[sensor.id];
-          if (reading) {
-            sum += reading.value;
-            count++;
-            values.push(reading.value);
-            if (!unit && sensor.unit) {
-              unit = sensor.unit;
-            }
-          }
-        });
-
-        const average = count > 0 ? sum / count : null;
-
-        // Calculate severity using thresholds
-        let severity = { severity: 'unknown', color: '#grey', label: 'No Data', notification: false };
-        let thresholdRanges: ThresholdRange[] = []; // Explicitly type the array
-
-        if (average !== null && thresholdsByType[type]) {
-          severity = this.sensorThresholdService.calculateSeverity(
-            average,
-            thresholdsByType[type]
-          );
-
-          // Get threshold ranges for gauge visualization
-          thresholdRanges = this.getThresholdRanges(thresholdsByType[type]);
-        }
-
-        // Calculate min and max values with proper null checking
-        const validMinValues = thresholdRanges
-          .map(r => r.min)
-          .filter((v): v is number => v !== null);
-
-        const validMaxValues = thresholdRanges
-          .map(r => r.max)
-          .filter((v): v is number => v !== null);
-
-        const minValue = validMinValues.length > 0
-          ? Math.min(...validMinValues)
-          : (values.length > 0 ? Math.min(...values) : 0);
-
-        const maxValue = validMaxValues.length > 0
-          ? Math.max(...validMaxValues)
-          : (values.length > 0 ? Math.max(...values) : 100);
-
-        acc[type] = {
-          average,
-          unit,
-          sensorsCount: sensorsOfType.length,
-          sensorsWithDataCount: count,
-          values, // Individual sensor values
-          // Severity information
-          severity: severity.severity,
-          severityColor: severity.color,
-          severityLabel: severity.label,
-          // Threshold ranges for gauge
-          thresholdRanges,
-          // Min/Max for gauge scaling
-          minValue,
-          maxValue,
-        };
-
-        return acc;
-      },
-      {} as Record<string, any>,
-    );
-
-    return averagesByType;
-  }
-
-  // STEP 7: Add new helper methods for threshold processing
   private groupThresholdsBySensorType(thresholds: any[]): Record<string, any[]> {
     return thresholds.reduce((acc, threshold) => {
       if (!acc[threshold.sensorType]) {
@@ -309,13 +313,7 @@ export class DashboardService {
     }, {} as Record<string, any[]>);
   }
 
-  private getThresholdRanges(thresholds: any[]): Array<{
-    severity: string;
-    min: number | null;
-    max: number | null;
-    color: string;
-    label: string;
-  }> {
+  private getThresholdRanges(thresholds: any[]): ThresholdRange[] {
     return thresholds.map(threshold => ({
       severity: threshold.severityLevel,
       min: threshold.minValue,
@@ -326,6 +324,75 @@ export class DashboardService {
       const priority: Record<string, number> = { critical: 1, warning: 2, normal: 3 };
       return (priority[a.severity] || 999) - (priority[b.severity] || 999);
     });
+  }
+
+  // Sensor data methods with proper return types
+  async getSensorData(farmId: string, hours: number = 24, sensorType?: string): Promise<SensorChartData[]> {
+    const farm = await this.farmRepository.findOne({
+      where: { id: farmId },
+    });
+
+    if (!farm) {
+      throw new NotFoundException(`Farm with ID "${farmId}" not found`);
+    }
+
+    const devices = await this.deviceRepository.find({
+      where: { farmId, isActive: true },
+    });
+
+    if (devices.length === 0) {
+      return [];
+    }
+
+    const deviceIds = devices.map((device) => device.id);
+
+    let sensorQuery = this.sensorRepository
+      .createQueryBuilder('sensor')
+      .where('sensor.deviceId IN (:...deviceIds)', { deviceIds })
+      .andWhere('sensor.isActive = :isActive', { isActive: true });
+
+    if (sensorType) {
+      sensorQuery = sensorQuery.andWhere('sensor.type = :type', {
+        type: sensorType,
+      });
+    }
+
+    const sensors = await sensorQuery.getMany();
+
+    if (sensors.length === 0) {
+      return [];
+    }
+
+    const sensorsByType = sensors.reduce(
+      (acc, sensor) => {
+        if (!acc[sensor.type]) {
+          acc[sensor.type] = [];
+        }
+        acc[sensor.type].push(sensor.id);
+        return acc;
+      },
+      {} as Record<string, string[]>,
+    );
+
+    const endDate = new Date();
+    const startDate = new Date(endDate.getTime() - hours * 60 * 60 * 1000);
+
+    const result = await Promise.all(
+      Object.entries(sensorsByType).map(async ([type, sensorIds]) => {
+        const readings = await this.getSensorReadingsInTimeRange(
+          sensorIds,
+          startDate,
+          endDate,
+        );
+
+        return {
+          type,
+          data: this.aggregateReadingsByTime(readings, startDate, endDate),
+        };
+      }),
+    );
+
+    return result;
   }
 
   private async getSensorReadingsInTimeRange(
@@ -352,16 +419,13 @@ export class DashboardService {
     startDate: Date,
     endDate: Date,
   ) {
-    // If we have no readings, return empty array
     if (readings.length === 0) {
       return [];
     }
 
-    // Group readings by timestamp (rounded to nearest hour)
     const readingsByHour = readings.reduce(
       (acc, reading) => {
         const date = new Date(reading.timestamp);
-        // Round to nearest hour for grouping
         date.setMinutes(0, 0, 0);
         const timeKey = date.toISOString();
 
@@ -378,7 +442,6 @@ export class DashboardService {
       {} as Record<string, { time: Date; values: number[] }>,
     );
 
-    // Calculate average for each time point
     return Object.values(readingsByHour)
       .map(({ time, values }) => {
         const sum = values.reduce((a, b) => a + b, 0);
@@ -395,7 +458,7 @@ export class DashboardService {
     sensorType: string,
     startDate: Date,
     endDate: Date,
-  ): Promise<any> {
+  ): Promise<RealtimeDataPoint[]> {
     const farm = await this.farmRepository.findOne({
       where: { id: farmId },
     });
@@ -404,7 +467,6 @@ export class DashboardService {
       throw new NotFoundException(`Farm with ID "${farmId}" not found`);
     }
 
-    // Get all devices for this farm
     const devices = await this.deviceRepository.find({
       where: { farmId, isActive: true },
     });
@@ -414,11 +476,8 @@ export class DashboardService {
     }
 
     const deviceIds = devices.map((device) => device.id);
-
-    // Convert string to SensorType enum
     const sensorTypeEnum = sensorType.toUpperCase() as SensorType;
 
-    // Get all sensors of the specified type
     const sensors = await this.sensorRepository.find({
       where: {
         deviceId: In(deviceIds),
@@ -433,7 +492,6 @@ export class DashboardService {
 
     const sensorIds = sensors.map((sensor) => sensor.id);
 
-    // Get readings for these sensors within the time range
     const readings = await this.sensorReadingRepository
       .createQueryBuilder('reading')
       .select('reading.sensorId', 'sensorId')
@@ -447,7 +505,6 @@ export class DashboardService {
       .orderBy('reading.timestamp', 'ASC')
       .getRawMany();
 
-    // Return the readings as-is, without aggregation, for real-time display
     return readings.map(reading => ({
       time: reading.timestamp,
       value: reading.value,

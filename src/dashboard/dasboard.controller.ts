@@ -8,6 +8,7 @@ import {
   ApiParam,
   ApiQuery,
 } from '@nestjs/swagger';
+import { DashboardSummary, SensorChartData, RealtimeDataPoint } from './types/dashboard.types';
 
 @ApiTags('dashboard')
 @Controller('dashboard')
@@ -27,7 +28,7 @@ export class DashboardController {
     description:
       'Returns dashboard summary including latest timestamp, sensor averages, and active sensor count',
   })
-  async getDashboardSummary(@Param('farmId') farmId: string) {
+  async getDashboardSummary(@Param('farmId') farmId: string): Promise<DashboardSummary> {
     return this.dashboardService.getDashboardSummary(farmId);
   }
 
@@ -58,7 +59,7 @@ export class DashboardController {
     @Param('farmId') farmId: string,
     @Query('timeRange') timeRange: string = '24',
     @Query('sensorType') sensorType?: string,
-  ) {
+  ): Promise<SensorChartData[]> {
     const hours = parseInt(timeRange) || 24;
     return this.dashboardService.getSensorData(farmId, hours, sensorType);
   }
@@ -96,7 +97,7 @@ export class DashboardController {
     @Param('sensorType') sensorType: string,
     @Query('startDate') startDate: string,
     @Query('endDate') endDate: string,
-  ) {
+  ): Promise<RealtimeDataPoint[]> {
     return this.dashboardService.getSensorRealtimeData(
       farmId,
       sensorType,
