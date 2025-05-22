@@ -1,12 +1,13 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import {
-    Controller,
-    Get,
-    Post,
-    Param,
-    Body,
-    UseGuards,
-    Request,
-    ForbiddenException,
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  UseGuards,
+  Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import { SensorThresholdService } from './sensor-threshold.service';
 import { CreateSensorThresholdDto } from './dto/sensor-threshold.dto';
@@ -17,53 +18,63 @@ import { UserRole } from '../user/entities/user.entity';
 @Controller('sensor-thresholds')
 @UseGuards(JwtAuthGuard)
 export class SensorThresholdController {
-    constructor(
-        private readonly thresholdService: SensorThresholdService,
-        private readonly farmService: FarmService,
-    ) { }
+  constructor(
+    private readonly thresholdService: SensorThresholdService,
+    private readonly farmService: FarmService,
+  ) {}
 
-    @Get('farm/:farmId')
-    async getFarmThresholds(@Param('farmId') farmId: string, @Request() req) {
-        // Check farm access
-        const isAdmin = await this.userHasAdminRole(req.user.userId);
-        const isMember = await this.farmService.isUserMember(farmId, req.user.userId);
+  @Get('farm/:farmId')
+  async getFarmThresholds(@Param('farmId') farmId: string, @Request() req) {
+    // Check farm access
+    const isAdmin = await this.userHasAdminRole(req.user.userId);
+    const isMember = await this.farmService.isUserMember(
+      farmId,
+      req.user.userId,
+    );
 
-        if (!isAdmin && !isMember) {
-            throw new ForbiddenException('No access to this farm');
-        }
-
-        return this.thresholdService.getThresholdsByFarm(farmId);
+    if (!isAdmin && !isMember) {
+      throw new ForbiddenException('No access to this farm');
     }
 
-    @Post('farm/:farmId/sensor/:sensorType')
-    async upsertSensorThresholds(
-        @Param('farmId') farmId: string,
-        @Param('sensorType') sensorType: string,
-        @Body() thresholds: CreateSensorThresholdDto[],
-        @Request() req
-    ) {
-        // Check farm access
-        const isAdmin = await this.userHasAdminRole(req.user.userId);
-        const isMember = await this.farmService.isUserMember(farmId, req.user.userId);
+    return this.thresholdService.getThresholdsByFarm(farmId);
+  }
 
-        if (!isAdmin && !isMember) {
-            throw new ForbiddenException('No access to this farm');
-        }
+  @Post('farm/:farmId/sensor/:sensorType')
+  async upsertSensorThresholds(
+    @Param('farmId') farmId: string,
+    @Param('sensorType') sensorType: string,
+    @Body() thresholds: CreateSensorThresholdDto[],
+    @Request() req,
+  ) {
+    // Check farm access
+    const isAdmin = await this.userHasAdminRole(req.user.userId);
+    const isMember = await this.farmService.isUserMember(
+      farmId,
+      req.user.userId,
+    );
 
-        return this.thresholdService.upsertThresholds(farmId, sensorType, thresholds);
+    if (!isAdmin && !isMember) {
+      throw new ForbiddenException('No access to this farm');
     }
 
-    @Get('defaults/:sensorType')
-    async getDefaultThresholds(@Param('sensorType') sensorType: string) {
-        return this.thresholdService.getDefaultThresholds(sensorType);
-    }
+    return this.thresholdService.upsertThresholds(
+      farmId,
+      sensorType,
+      thresholds,
+    );
+  }
 
-    private async userHasAdminRole(userId: string): Promise<boolean> {
-        try {
-            const user = await this.farmService['userService'].findById(userId);
-            return user && user.role === UserRole.ADMIN;
-        } catch (error) {
-            return false;
-        }
+  @Get('defaults/:sensorType')
+  async getDefaultThresholds(@Param('sensorType') sensorType: string) {
+    return this.thresholdService.getDefaultThresholds(sensorType);
+  }
+
+  private async userHasAdminRole(userId: string): Promise<boolean> {
+    try {
+      const user = await this.farmService['userService'].findById(userId);
+      return user && user.role === UserRole.ADMIN;
+    } catch (error) {
+      return false;
     }
+  }
 }
