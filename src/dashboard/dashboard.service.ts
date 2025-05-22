@@ -259,20 +259,21 @@ export class DashboardService {
     return this.getDefaultRangeForSensorType(sensorType);
   }
 
-  // Default ranges for different sensor types
+
   private getDefaultRangeForSensorType(sensorType: string): { minValue: number; maxValue: number } {
     const defaults: Record<string, { minValue: number; maxValue: number }> = {
-      'pH': { minValue: 0, maxValue: 14 },
-      'DO': { minValue: 0, maxValue: 20 },
-      'Temperature': { minValue: 0, maxValue: 50 },
-      'TempA': { minValue: 0, maxValue: 50 },
-      'TempB': { minValue: 0, maxValue: 50 },
-      'TempC': { minValue: 0, maxValue: 50 },
-      'Saltlinity': { minValue: 0, maxValue: 50 },
-      'NHx': { minValue: 0, maxValue: 10 },
-      'EC': { minValue: 0, maxValue: 5000 },
-      'TDS': { minValue: 0, maxValue: 2000 },
-      'ORP': { minValue: -500, maxValue: 500 },
+      // Temperature sensors A, B, C (°C) - All same range
+      'TempA': { minValue: 20, maxValue: 40 },
+      'TempB': { minValue: 20, maxValue: 40 },
+      'TempC': { minValue: 20, maxValue: 40 },
+
+      // Water quality sensors from WQI picture
+      'DO': { minValue: 0, maxValue: 20 },         // Dissolved Oxygen (mg/L)
+      'Salinity': { minValue: 0, maxValue: 60 },   // Salinity (ppt)
+      'pH': { minValue: 0, maxValue: 14 },         // pH level
+      'Ammonia': { minValue: 0, maxValue: 250 },   // Ammonia (PPM)
+      'Turbidity': { minValue: 0, maxValue: 100 }, // Turbidity (cm)
+      'NO2': { minValue: 0, maxValue: 1.0 },       // Nitrite
     };
 
     return defaults[sensorType] || { minValue: 0, maxValue: 100 };
