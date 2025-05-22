@@ -17,7 +17,9 @@ export enum SeverityLevel {
 }
 
 @Entity('sensor_thresholds')
-@Index(['farmId', 'sensorType', 'severityLevel'], { unique: true })
+@Index(['farmId', 'sensorType', 'severityLevel', 'rangeOrder'], {
+  unique: true,
+})
 export class SensorThreshold {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -37,6 +39,10 @@ export class SensorThreshold {
     enum: SeverityLevel,
   })
   severityLevel: SeverityLevel;
+
+  // NEW: Add rangeOrder column to distinguish multiple ranges with same severity
+  @Column({ type: 'int', default: 0 })
+  rangeOrder: number;
 
   @Column({ type: 'float', precision: 10, scale: 4, nullable: true })
   minValue: number | null;

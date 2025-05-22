@@ -1,73 +1,85 @@
 import {
-    IsNotEmpty,
-    IsString,
-    IsOptional,
-    IsUUID,
-    IsBoolean,
-    IsEnum,
-    IsNumber,
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsUUID,
+  IsBoolean,
+  IsEnum,
+  IsNumber,
+  IsInt,
+  Min,
 } from 'class-validator';
 import { SeverityLevel } from '../entities/sensor-threshold.entity';
 
 export class CreateSensorThresholdDto {
-    @IsNotEmpty()
-    @IsUUID()
-    farmId: string;
+  @IsNotEmpty()
+  @IsUUID()
+  farmId: string;
 
-    @IsNotEmpty()
-    @IsString()
-    sensorType: string;
+  @IsNotEmpty()
+  @IsString()
+  sensorType: string;
 
-    @IsNotEmpty()
-    @IsEnum(SeverityLevel)
-    severityLevel: SeverityLevel;
+  @IsNotEmpty()
+  @IsEnum(SeverityLevel)
+  severityLevel: SeverityLevel;
 
-    @IsOptional()
-    @IsNumber()
-    minValue?: number;
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  rangeOrder?: number;
 
-    @IsOptional()
-    @IsNumber()
-    maxValue?: number;
+  @IsOptional()
+  @IsNumber()
+  minValue?: number;
 
-    @IsOptional()
-    @IsBoolean()
-    notificationEnabled?: boolean;
+  @IsOptional()
+  @IsNumber()
+  maxValue?: number;
 
-    @IsOptional()
-    @IsString()
-    colorCode?: string;
+  @IsOptional()
+  @IsBoolean()
+  notificationEnabled?: boolean;
 
-    @IsOptional()
-    @IsString()
-    label?: string;
+  @IsOptional()
+  @IsString()
+  colorCode?: string;
+
+  @IsOptional()
+  @IsString()
+  label?: string;
 }
 
 export class UpdateSensorThresholdDto {
-    @IsOptional()
-    @IsNumber()
-    minValue?: number;
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  rangeOrder?: number;
 
-    @IsOptional()
-    @IsNumber()
-    maxValue?: number;
+  @IsOptional()
+  @IsNumber()
+  minValue?: number;
 
-    @IsOptional()
-    @IsBoolean()
-    notificationEnabled?: boolean;
+  @IsOptional()
+  @IsNumber()
+  maxValue?: number;
 
-    @IsOptional()
-    @IsString()
-    colorCode?: string;
+  @IsOptional()
+  @IsBoolean()
+  notificationEnabled?: boolean;
 
-    @IsOptional()
-    @IsString()
-    label?: string;
+  @IsOptional()
+  @IsString()
+  colorCode?: string;
+
+  @IsOptional()
+  @IsString()
+  label?: string;
 }
 
 export class SeverityResult {
-    severity: string;
-    color: string;
-    label: string;
-    notification: boolean;
+  severity: string;
+  color: string;
+  label: string;
+  notification: boolean;
 }
