@@ -6,11 +6,13 @@ import { Sensor } from 'src/sensor/entities/sensor.entity';
 import { Device } from 'src/device/entities/device.entity';
 import { Farm } from 'src/farm/entities/farm.entity';
 import { DashboardService } from './dashboard.service';
+import { SensorThresholdModule } from '../sensor-threshold/sensor-threshold.module'
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Farm, Device, Sensor, SensorReading])],
+  imports: [TypeOrmModule.forFeature([Farm, Device, Sensor, SensorReading, SensorThresholdModule]),
+    SensorThresholdModule],
   controllers: [DashboardController],
   providers: [DashboardService],
   exports: [DashboardModule],
 })
-export class DashboardModule {}
+export class DashboardModule { }

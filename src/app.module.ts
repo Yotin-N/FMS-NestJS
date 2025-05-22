@@ -11,6 +11,7 @@ import { SensorModule } from './sensor/sensor.module';
 import { SensorReadingModule } from './sensor-reading/sensor-reading.module';
 import { MqttModule } from './mqtt/mqtt.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { SensorThresholdModule } from './sensor-threshold/sensor-threshold.module';
 import * as fs from 'fs';
 
 @Module({
@@ -49,6 +50,7 @@ import * as fs from 'fs';
     SensorReadingModule,
     MqttModule,
     DashboardModule,
+    SensorThresholdModule,
   ],
   controllers: [AppController],
   providers: [AppService],
