@@ -116,10 +116,214 @@ export class SensorThresholdService {
     });
   }
 
-  // FIXED: Updated default threshold configs to include rangeOrder logic
   private getDefaultThresholdConfig(sensorType: string) {
     const configs = {
-      // pH - Multiple ranges for same severity levels
+      // Temperature sensors A, B, C (°C) - All use same thresholds from WQI table
+      TempA: [
+        {
+          severityLevel: SeverityLevel.CRITICAL,
+          minValue: null,
+          maxValue: 25,
+          colorCode: '#f44336',
+          label: 'Critical Cold',
+        },
+        {
+          severityLevel: SeverityLevel.WARNING,
+          minValue: 25,
+          maxValue: 26,
+          colorCode: '#ff9800',
+          label: 'Cool',
+        },
+        {
+          severityLevel: SeverityLevel.WARNING,
+          minValue: 26,
+          maxValue: 28,
+          colorCode: '#ffeb3b',
+          label: 'Good',
+        },
+        {
+          severityLevel: SeverityLevel.NORMAL,
+          minValue: 28,
+          maxValue: 29,
+          colorCode: '#4caf50',
+          label: 'Optimal',
+        },
+        {
+          severityLevel: SeverityLevel.WARNING,
+          minValue: 30,
+          maxValue: 34,
+          colorCode: '#ffeb3b',
+          label: 'Good',
+        },
+        {
+          severityLevel: SeverityLevel.CRITICAL,
+          minValue: 35,
+          maxValue: null,
+          colorCode: '#f44336',
+          label: 'Critical Hot',
+        },
+      ],
+      TempB: [
+        {
+          severityLevel: SeverityLevel.CRITICAL,
+          minValue: null,
+          maxValue: 25,
+          colorCode: '#f44336',
+          label: 'Critical Cold',
+        },
+        {
+          severityLevel: SeverityLevel.WARNING,
+          minValue: 25,
+          maxValue: 26,
+          colorCode: '#ff9800',
+          label: 'Cool',
+        },
+        {
+          severityLevel: SeverityLevel.WARNING,
+          minValue: 26,
+          maxValue: 28,
+          colorCode: '#ffeb3b',
+          label: 'Good',
+        },
+        {
+          severityLevel: SeverityLevel.NORMAL,
+          minValue: 28,
+          maxValue: 29,
+          colorCode: '#4caf50',
+          label: 'Optimal',
+        },
+        {
+          severityLevel: SeverityLevel.WARNING,
+          minValue: 30,
+          maxValue: 34,
+          colorCode: '#ffeb3b',
+          label: 'Good',
+        },
+        {
+          severityLevel: SeverityLevel.CRITICAL,
+          minValue: 35,
+          maxValue: null,
+          colorCode: '#f44336',
+          label: 'Critical Hot',
+        },
+      ],
+      TempC: [
+        {
+          severityLevel: SeverityLevel.CRITICAL,
+          minValue: null,
+          maxValue: 25,
+          colorCode: '#f44336',
+          label: 'Critical Cold',
+        },
+        {
+          severityLevel: SeverityLevel.WARNING,
+          minValue: 25,
+          maxValue: 26,
+          colorCode: '#ff9800',
+          label: 'Cool',
+        },
+        {
+          severityLevel: SeverityLevel.WARNING,
+          minValue: 26,
+          maxValue: 28,
+          colorCode: '#ffeb3b',
+          label: 'Good',
+        },
+        {
+          severityLevel: SeverityLevel.NORMAL,
+          minValue: 28,
+          maxValue: 29,
+          colorCode: '#4caf50',
+          label: 'Optimal',
+        },
+        {
+          severityLevel: SeverityLevel.WARNING,
+          minValue: 30,
+          maxValue: 34,
+          colorCode: '#ffeb3b',
+          label: 'Good',
+        },
+        {
+          severityLevel: SeverityLevel.CRITICAL,
+          minValue: 35,
+          maxValue: null,
+          colorCode: '#f44336',
+          label: 'Critical Hot',
+        },
+      ],
+
+      // Dissolved Oxygen (mg/L) - From WQI table
+      DO: [
+        {
+          severityLevel: SeverityLevel.CRITICAL,
+          minValue: null,
+          maxValue: 2,
+          colorCode: '#f44336',
+          label: 'Critical Low',
+        },
+        {
+          severityLevel: SeverityLevel.WARNING,
+          minValue: 2.1,
+          maxValue: 5.0,
+          colorCode: '#ffeb3b',
+          label: 'Good',
+        },
+        {
+          severityLevel: SeverityLevel.NORMAL,
+          minValue: 5.0,
+          maxValue: null,
+          colorCode: '#4caf50',
+          label: 'Optimal',
+        },
+      ],
+
+      // Salinity (ppt) - From WQI table
+      Salinity: [
+        {
+          severityLevel: SeverityLevel.CRITICAL,
+          minValue: null,
+          maxValue: 25,
+          colorCode: '#f44336',
+          label: 'Critical Low',
+        },
+        {
+          severityLevel: SeverityLevel.WARNING,
+          minValue: 26,
+          maxValue: 28,
+          colorCode: '#ff9800',
+          label: 'Low',
+        },
+        {
+          severityLevel: SeverityLevel.NORMAL,
+          minValue: 29,
+          maxValue: 34,
+          colorCode: '#4caf50',
+          label: 'Optimal',
+        },
+        {
+          severityLevel: SeverityLevel.WARNING,
+          minValue: 35,
+          maxValue: 40,
+          colorCode: '#ffeb3b',
+          label: 'Good',
+        },
+        {
+          severityLevel: SeverityLevel.WARNING,
+          minValue: 41,
+          maxValue: 50,
+          colorCode: '#ff9800',
+          label: 'High',
+        },
+        {
+          severityLevel: SeverityLevel.CRITICAL,
+          minValue: 50,
+          maxValue: null,
+          colorCode: '#f44336',
+          label: 'Critical High',
+        },
+      ],
+
+      // pH - From WQI table
       pH: [
         {
           severityLevel: SeverityLevel.CRITICAL,
@@ -133,7 +337,7 @@ export class SensorThresholdService {
           minValue: 7.6,
           maxValue: 7.8,
           colorCode: '#ffeb3b',
-          label: 'Good Low',
+          label: 'Good',
         },
         {
           severityLevel: SeverityLevel.NORMAL,
@@ -147,18 +351,112 @@ export class SensorThresholdService {
           minValue: 8.3,
           maxValue: 8.4,
           colorCode: '#ffeb3b',
-          label: 'Good High',
+          label: 'Good',
+        },
+        {
+          severityLevel: SeverityLevel.WARNING,
+          minValue: 8.5,
+          maxValue: 14.0,
+          colorCode: '#ff9800',
+          label: 'High',
         },
         {
           severityLevel: SeverityLevel.CRITICAL,
-          minValue: 8.5,
+          minValue: 14.0,
           maxValue: null,
           colorCode: '#f44336',
           label: 'Critical Basic',
         },
       ],
-      // Include other sensor types...
-      // (keeping the same structure as your original code)
+
+      // Ammonia (PPM) - From WQI table
+      Ammonia: [
+        {
+          severityLevel: SeverityLevel.NORMAL,
+          minValue: null,
+          maxValue: 80,
+          colorCode: '#4caf50',
+          label: 'Optimal',
+        },
+        {
+          severityLevel: SeverityLevel.WARNING,
+          minValue: 81,
+          maxValue: 120,
+          colorCode: '#ffeb3b',
+          label: 'Good',
+        },
+        {
+          severityLevel: SeverityLevel.CRITICAL,
+          minValue: 121,
+          maxValue: null,
+          colorCode: '#f44336',
+          label: 'Critical High',
+        },
+      ],
+
+      // Turbidity (cm) - From WQI table
+      Turbidity: [
+        {
+          severityLevel: SeverityLevel.CRITICAL,
+          minValue: null,
+          maxValue: 10,
+          colorCode: '#f44336',
+          label: 'Critical Turbid',
+        },
+        {
+          severityLevel: SeverityLevel.WARNING,
+          minValue: 11,
+          maxValue: 20,
+          colorCode: '#ff9800',
+          label: 'Turbid',
+        },
+        {
+          severityLevel: SeverityLevel.WARNING,
+          minValue: 21,
+          maxValue: 39,
+          colorCode: '#ffeb3b',
+          label: 'Good',
+        },
+        {
+          severityLevel: SeverityLevel.WARNING,
+          minValue: 40,
+          maxValue: 49,
+          colorCode: '#ffeb3b',
+          label: 'Good',
+        },
+        {
+          severityLevel: SeverityLevel.CRITICAL,
+          minValue: 50,
+          maxValue: null,
+          colorCode: '#f44336',
+          label: 'Critical Clear',
+        },
+      ],
+
+      // NO2 (Nitrite) - From WQI table
+      NO2: [
+        {
+          severityLevel: SeverityLevel.NORMAL,
+          minValue: null,
+          maxValue: 0.1,
+          colorCode: '#4caf50',
+          label: 'Optimal',
+        },
+        {
+          severityLevel: SeverityLevel.WARNING,
+          minValue: 0.1,
+          maxValue: 0.11,
+          colorCode: '#ffeb3b',
+          label: 'Good',
+        },
+        {
+          severityLevel: SeverityLevel.CRITICAL,
+          minValue: 0.12,
+          maxValue: null,
+          colorCode: '#f44336',
+          label: 'Critical High',
+        },
+      ],
     };
 
     return (
