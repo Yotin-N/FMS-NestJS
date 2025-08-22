@@ -352,13 +352,24 @@ export class DashboardService {
       });
   }
 
-  // Enhanced sensor data methods with minute-level aggregation support
   async getSensorData(
     farmId: string,
     hours: number = 24,
     sensorType?: string,
-    aggregationMinutes: number = 60, // New parameter: minutes per data point (60 = 1 hour, 1 = 1 minute)
+    aggregationMinutes?: number,
   ): Promise<SensorChartData[]> {
+    let effectiveAggregationMinutes = aggregationMinutes;
+
+    if (!effectiveAggregationMinutes) {
+      if (hours <= 24) {
+        effectiveAggregationMinutes = 15;
+      } else if (hours <= 168) {
+        effectiveAggregationMinutes = 120;
+      } else {
+        effectiveAggregationMinutes = 1440;
+      }
+    }
+
     const farm = await this.farmRepository.findOne({
       where: { id: farmId },
     });
@@ -422,7 +433,7 @@ export class DashboardService {
             readings,
             startDate,
             endDate,
-            aggregationMinutes,
+            effectiveAggregationMinutes,
           ),
         };
       }),
