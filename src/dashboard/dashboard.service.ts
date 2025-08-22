@@ -13,7 +13,7 @@ import {
   SensorTypeData,
   DashboardSummary,
   SensorChartData,
-  RealtimeDataPoint
+  RealtimeDataPoint,
 } from './types/dashboard.types';
 
 @Injectable()
@@ -28,7 +28,7 @@ export class DashboardService {
     @InjectRepository(SensorReading)
     private readonly sensorReadingRepository: Repository<SensorReading>,
     private readonly sensorThresholdService: SensorThresholdService,
-  ) { }
+  ) {}
 
   async getDashboardSummary(farmId: string): Promise<DashboardSummary> {
     // Verify farm exists
@@ -81,21 +81,22 @@ export class DashboardService {
     const latestReadings = await this.getLatestReadingsForSensors(sensorIds);
 
     // Get thresholds for the farm
-    const thresholds = await this.sensorThresholdService.getThresholdsByFarm(farmId);
+    const thresholds =
+      await this.sensorThresholdService.getThresholdsByFarm(farmId);
     const thresholdsByType = this.groupThresholdsBySensorType(thresholds);
 
     // Use the enhanced method with proper threshold integration
     const averagesByType = await this.calculateAverageByTypeWithSeverity(
       sensors,
       latestReadings,
-      thresholdsByType
+      thresholdsByType,
     );
 
     return {
       latestTimestamp: latestReadingResult?.latestTimestamp || null,
       averages: averagesByType,
       activeSensorsCount: sensors.length,
-      thresholds: thresholdsByType
+      thresholds: thresholdsByType,
     };
   }
 
@@ -103,7 +104,7 @@ export class DashboardService {
   private async calculateAverageByTypeWithSeverity(
     sensors: Sensor[],
     readings: Record<string, SensorReading>,
-    thresholdsByType: Record<string, any[]>
+    thresholdsByType: Record<string, any[]>,
   ): Promise<Record<string, SensorTypeData>> {
     const sensorsByType = sensors.reduce(
       (acc, sensor) => {
@@ -138,7 +139,10 @@ export class DashboardService {
           }
 
           // Keep track of the most recent reading
-          if (!latestReading || new Date(reading.timestamp) > new Date(latestReading.timestamp)) {
+          if (
+            !latestReading ||
+            new Date(reading.timestamp) > new Date(latestReading.timestamp)
+          ) {
             latestReading = reading;
             latestTimestamp = reading.timestamp;
           }
@@ -156,13 +160,18 @@ export class DashboardService {
       }
 
       // Calculate severity and threshold ranges
-      let severity = { severity: 'unknown', color: '#9e9e9e', label: 'No Data', notification: false };
+      let severity = {
+        severity: 'unknown',
+        color: '#9e9e9e',
+        label: 'No Data',
+        notification: false,
+      };
       let thresholdRanges: ThresholdRange[] = [];
 
       if (average !== null && sensorThresholds.length > 0) {
         severity = this.sensorThresholdService.calculateSeverity(
           average,
-          sensorThresholds
+          sensorThresholds,
         );
 
         thresholdRanges = this.getThresholdRanges(sensorThresholds);
@@ -172,7 +181,7 @@ export class DashboardService {
       const { minValue, maxValue } = this.calculateGaugeRange(
         thresholdRanges,
         values,
-        type
+        type,
       );
 
       averagesByType[type] = {
@@ -213,7 +222,10 @@ export class DashboardService {
       // Get default thresholds from the threshold service
       return await this.sensorThresholdService.getDefaultThresholds(sensorType);
     } catch (error) {
-      console.warn(`Failed to get default thresholds for ${sensorType}:`, error);
+      console.warn(
+        `Failed to get default thresholds for ${sensorType}:`,
+        error,
+      );
       return [];
     }
   }
@@ -222,22 +234,22 @@ export class DashboardService {
   private calculateGaugeRange(
     thresholdRanges: ThresholdRange[],
     values: number[],
-    sensorType: string
+    sensorType: string,
   ): { minValue: number; maxValue: number } {
     // First, try to use threshold ranges
     if (thresholdRanges.length > 0) {
       const validMinValues = thresholdRanges
-        .map(r => r.min)
+        .map((r) => r.min)
         .filter((v): v is number => v !== null && v !== undefined);
 
       const validMaxValues = thresholdRanges
-        .map(r => r.max)
+        .map((r) => r.max)
         .filter((v): v is number => v !== null && v !== undefined);
 
       if (validMinValues.length > 0 && validMaxValues.length > 0) {
         return {
           minValue: Math.min(...validMinValues),
-          maxValue: Math.max(...validMaxValues)
+          maxValue: Math.max(...validMaxValues),
         };
       }
     }
@@ -251,7 +263,7 @@ export class DashboardService {
 
       return {
         minValue: Math.max(0, dataMin - padding),
-        maxValue: dataMax + padding
+        maxValue: dataMax + padding,
       };
     }
 
@@ -259,21 +271,23 @@ export class DashboardService {
     return this.getDefaultRangeForSensorType(sensorType);
   }
 
-
-  private getDefaultRangeForSensorType(sensorType: string): { minValue: number; maxValue: number } {
+  private getDefaultRangeForSensorType(sensorType: string): {
+    minValue: number;
+    maxValue: number;
+  } {
     const defaults: Record<string, { minValue: number; maxValue: number }> = {
       // Temperature sensors A, B, C (°C) - All same range
-      'TempA': { minValue: 20, maxValue: 40 },
-      'TempB': { minValue: 20, maxValue: 40 },
-      'TempC': { minValue: 20, maxValue: 40 },
+      TempA: { minValue: 20, maxValue: 40 },
+      TempB: { minValue: 20, maxValue: 40 },
+      TempC: { minValue: 20, maxValue: 40 },
 
       // Water quality sensors from WQI picture
-      'DO': { minValue: 0, maxValue: 20 },         // Dissolved Oxygen (mg/L)
-      'Salinity': { minValue: 0, maxValue: 60 },   // Salinity (ppt)
-      'pH': { minValue: 0, maxValue: 14 },         // pH level
-      'Ammonia': { minValue: 0, maxValue: 250 },   // Ammonia (PPM)
-      'Turbidity': { minValue: 0, maxValue: 100 }, // Turbidity (cm)
-      'NO2': { minValue: 0, maxValue: 1.0 },       // Nitrite
+      DO: { minValue: 0, maxValue: 20 }, // Dissolved Oxygen (mg/L)
+      Salinity: { minValue: 0, maxValue: 60 }, // Salinity (ppt)
+      pH: { minValue: 0, maxValue: 14 }, // pH level
+      Ammonia: { minValue: 0, maxValue: 250 }, // Ammonia (PPM)
+      Turbidity: { minValue: 0, maxValue: 100 }, // Turbidity (cm)
+      NO2: { minValue: 0, maxValue: 1.0 }, // Nitrite
     };
 
     return defaults[sensorType] || { minValue: 0, maxValue: 100 };
@@ -304,35 +318,46 @@ export class DashboardService {
     );
   }
 
-  private groupThresholdsBySensorType(thresholds: any[]): Record<string, any[]> {
-    return thresholds.reduce((acc, threshold) => {
-      if (!acc[threshold.sensorType]) {
-        acc[threshold.sensorType] = [];
-      }
-      acc[threshold.sensorType].push(threshold);
-      return acc;
-    }, {} as Record<string, any[]>);
+  private groupThresholdsBySensorType(
+    thresholds: any[],
+  ): Record<string, any[]> {
+    return thresholds.reduce(
+      (acc, threshold) => {
+        if (!acc[threshold.sensorType]) {
+          acc[threshold.sensorType] = [];
+        }
+        acc[threshold.sensorType].push(threshold);
+        return acc;
+      },
+      {} as Record<string, any[]>,
+    );
   }
 
   private getThresholdRanges(thresholds: any[]): ThresholdRange[] {
-    return thresholds.map(threshold => ({
-      severity: threshold.severityLevel,
-      min: threshold.minValue,
-      max: threshold.maxValue,
-      color: threshold.colorCode,
-      label: threshold.label
-    })).sort((a, b) => {
-      const priority: Record<string, number> = { critical: 1, warning: 2, normal: 3 };
-      return (priority[a.severity] || 999) - (priority[b.severity] || 999);
-    });
+    return thresholds
+      .map((threshold) => ({
+        severity: threshold.severityLevel,
+        min: threshold.minValue,
+        max: threshold.maxValue,
+        color: threshold.colorCode,
+        label: threshold.label,
+      }))
+      .sort((a, b) => {
+        const priority: Record<string, number> = {
+          critical: 1,
+          warning: 2,
+          normal: 3,
+        };
+        return (priority[a.severity] || 999) - (priority[b.severity] || 999);
+      });
   }
 
   // Enhanced sensor data methods with minute-level aggregation support
   async getSensorData(
-    farmId: string, 
-    hours: number = 24, 
+    farmId: string,
+    hours: number = 24,
     sensorType?: string,
-    aggregationMinutes: number = 60  // New parameter: minutes per data point (60 = 1 hour, 1 = 1 minute)
+    aggregationMinutes: number = 60, // New parameter: minutes per data point (60 = 1 hour, 1 = 1 minute)
   ): Promise<SensorChartData[]> {
     const farm = await this.farmRepository.findOne({
       where: { id: farmId },
@@ -393,7 +418,12 @@ export class DashboardService {
 
         return {
           type,
-          data: this.aggregateReadingsByTime(readings, startDate, endDate, aggregationMinutes),
+          data: this.aggregateReadingsByTime(
+            readings,
+            startDate,
+            endDate,
+            aggregationMinutes,
+          ),
         };
       }),
     );
@@ -424,13 +454,12 @@ export class DashboardService {
     readings: Array<{ sensorId: string; value: number; timestamp: Date }>,
     startDate: Date,
     endDate: Date,
-    aggregationMinutes: number = 60, // Default to hourly aggregation
+    aggregationMinutes: number = 60,
   ) {
     if (readings.length === 0) {
-      return this.generateEmptyTimeSlots(startDate, endDate, aggregationMinutes);
+      return [];
     }
 
-    // Group readings by time intervals
     const readingsByTimeSlot = readings.reduce(
       (acc, reading) => {
         const date = new Date(reading.timestamp);
@@ -449,28 +478,15 @@ export class DashboardService {
       {} as Record<string, { time: Date; values: number[] }>,
     );
 
-    // Generate all time slots in the range (including empty ones)
-    const allTimeSlots = this.generateTimeSlots(startDate, endDate, aggregationMinutes);
-
-    // Merge actual data with time slots, filling gaps with null or interpolated values
-    return allTimeSlots.map(timeSlot => {
-      const timeKey = timeSlot.toISOString();
-      const readingData = readingsByTimeSlot[timeKey];
-
-      if (readingData && readingData.values.length > 0) {
-        const sum = readingData.values.reduce((a, b) => a + b, 0);
+    return Object.values(readingsByTimeSlot)
+      .map((slot) => {
+        const sum = slot.values.reduce((a, b) => a + b, 0);
         return {
-          time: timeSlot,
-          value: sum / readingData.values.length,
+          time: slot.time,
+          value: sum / slot.values.length,
         };
-      } else {
-        // Return null for missing data points - frontend can handle interpolation
-        return {
-          time: timeSlot,
-          value: null,
-        };
-      }
-    }).sort((a, b) => a.time.getTime() - b.time.getTime());
+      })
+      .sort((a, b) => a.time.getTime() - b.time.getTime());
   }
 
   // Helper method to generate time slot key
@@ -481,23 +497,29 @@ export class DashboardService {
   // Helper method to get the start of a time slot
   private getTimeSlotStart(date: Date, intervalMinutes: number): Date {
     const slotDate = new Date(date);
-    
+
     if (intervalMinutes >= 60) {
       // Hour-based aggregation
       const hoursInterval = intervalMinutes / 60;
-      const hour = Math.floor(slotDate.getHours() / hoursInterval) * hoursInterval;
+      const hour =
+        Math.floor(slotDate.getHours() / hoursInterval) * hoursInterval;
       slotDate.setHours(hour, 0, 0, 0);
     } else {
       // Minute-based aggregation
-      const minute = Math.floor(slotDate.getMinutes() / intervalMinutes) * intervalMinutes;
+      const minute =
+        Math.floor(slotDate.getMinutes() / intervalMinutes) * intervalMinutes;
       slotDate.setMinutes(minute, 0, 0);
     }
-    
+
     return slotDate;
   }
 
   // Helper method to generate all time slots in a range
-  private generateTimeSlots(startDate: Date, endDate: Date, intervalMinutes: number): Date[] {
+  private generateTimeSlots(
+    startDate: Date,
+    endDate: Date,
+    intervalMinutes: number,
+  ): Date[] {
     const slots: Date[] = [];
     const current = this.getTimeSlotStart(new Date(startDate), intervalMinutes);
     const end = new Date(endDate);
@@ -511,11 +533,17 @@ export class DashboardService {
   }
 
   // Helper method for empty time slots when no data exists
-  private generateEmptyTimeSlots(startDate: Date, endDate: Date, intervalMinutes: number) {
-    return this.generateTimeSlots(startDate, endDate, intervalMinutes).map(time => ({
-      time,
-      value: null,
-    }));
+  private generateEmptyTimeSlots(
+    startDate: Date,
+    endDate: Date,
+    intervalMinutes: number,
+  ) {
+    return this.generateTimeSlots(startDate, endDate, intervalMinutes).map(
+      (time) => ({
+        time,
+        value: null,
+      }),
+    );
   }
 
   async getSensorRealtimeData(
@@ -570,10 +598,10 @@ export class DashboardService {
       .orderBy('reading.timestamp', 'ASC')
       .getRawMany();
 
-    return readings.map(reading => ({
+    return readings.map((reading) => ({
       time: reading.timestamp,
       value: reading.value,
-      sensorId: reading.sensorId
+      sensorId: reading.sensorId,
     }));
   }
 }
