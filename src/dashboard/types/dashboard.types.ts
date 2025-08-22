@@ -38,12 +38,12 @@ export interface SensorChartData {
     type: string;
     data: Array<{
         time: Date;
-        value: number;
+        value: number | null;  // Allow null for missing data points
     }>;
 }
 
 export interface RealtimeDataPoint {
     time: Date;
-    value: number;
+    value: number | null;  // Allow null for missing data points
     sensorId: string;
 }

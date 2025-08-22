@@ -33,7 +33,7 @@ export class DashboardController {
   }
 
   @Get('farm/:farmId/sensor-data')
-  @ApiOperation({ summary: 'Get sensor data for charts' })
+  @ApiOperation({ summary: 'Get sensor data for charts with configurable granularity' })
   @ApiParam({
     name: 'farmId',
     description: 'Farm ID',
@@ -51,17 +51,47 @@ export class DashboardController {
     description: 'Filter by sensor type',
     example: 'pH',
   })
+  @ApiQuery({
+    name: 'granularityMinutes',
+    required: false,
+    description: 'Data point granularity in minutes (1=per minute, 60=per hour). For 1 hour with 60 points, use 1',
+    example: '1',
+  })
   @ApiResponse({
     status: 200,
-    description: 'Returns time series data for sensor charts',
+    description: 'Returns time series data for sensor charts. Use granularityMinutes=1 for 60 data points per hour',
+    schema: {
+      example: [
+        {
+          "type": "pH",
+          "data": [
+            {
+              "time": "2025-01-22T10:00:00.000Z",
+              "value": 7.2
+            },
+            {
+              "time": "2025-01-22T10:01:00.000Z",
+              "value": 7.1
+            },
+            {
+              "time": "2025-01-22T10:02:00.000Z",
+              "value": null
+            }
+          ]
+        }
+      ]
+    }
   })
   async getSensorData(
     @Param('farmId') farmId: string,
     @Query('timeRange') timeRange: string = '24',
     @Query('sensorType') sensorType?: string,
+    @Query('granularityMinutes') granularityMinutes: string = '60',
   ): Promise<SensorChartData[]> {
     const hours = parseInt(timeRange) || 24;
-    return this.dashboardService.getSensorData(farmId, hours, sensorType);
+    const aggregationMinutes = parseInt(granularityMinutes) || 60;
+    
+    return this.dashboardService.getSensorData(farmId, hours, sensorType, aggregationMinutes);
   }
 
   @Get('farm/:farmId/sensor/:sensorType/realtime-data')

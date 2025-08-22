@@ -327,8 +327,13 @@ export class DashboardService {
     });
   }
 
-  // Sensor data methods with proper return types
-  async getSensorData(farmId: string, hours: number = 24, sensorType?: string): Promise<SensorChartData[]> {
+  // Enhanced sensor data methods with minute-level aggregation support
+  async getSensorData(
+    farmId: string, 
+    hours: number = 24, 
+    sensorType?: string,
+    aggregationMinutes: number = 60  // New parameter: minutes per data point (60 = 1 hour, 1 = 1 minute)
+  ): Promise<SensorChartData[]> {
     const farm = await this.farmRepository.findOne({
       where: { id: farmId },
     });
@@ -388,7 +393,7 @@ export class DashboardService {
 
         return {
           type,
-          data: this.aggregateReadingsByTime(readings, startDate, endDate),
+          data: this.aggregateReadingsByTime(readings, startDate, endDate, aggregationMinutes),
         };
       }),
     );
@@ -419,20 +424,21 @@ export class DashboardService {
     readings: Array<{ sensorId: string; value: number; timestamp: Date }>,
     startDate: Date,
     endDate: Date,
+    aggregationMinutes: number = 60, // Default to hourly aggregation
   ) {
     if (readings.length === 0) {
-      return [];
+      return this.generateEmptyTimeSlots(startDate, endDate, aggregationMinutes);
     }
 
-    const readingsByHour = readings.reduce(
+    // Group readings by time intervals
+    const readingsByTimeSlot = readings.reduce(
       (acc, reading) => {
         const date = new Date(reading.timestamp);
-        date.setMinutes(0, 0, 0);
-        const timeKey = date.toISOString();
+        const timeKey = this.getTimeSlotKey(date, aggregationMinutes);
 
         if (!acc[timeKey]) {
           acc[timeKey] = {
-            time: date,
+            time: this.getTimeSlotStart(date, aggregationMinutes),
             values: [],
           };
         }
@@ -443,15 +449,73 @@ export class DashboardService {
       {} as Record<string, { time: Date; values: number[] }>,
     );
 
-    return Object.values(readingsByHour)
-      .map(({ time, values }) => {
-        const sum = values.reduce((a, b) => a + b, 0);
+    // Generate all time slots in the range (including empty ones)
+    const allTimeSlots = this.generateTimeSlots(startDate, endDate, aggregationMinutes);
+
+    // Merge actual data with time slots, filling gaps with null or interpolated values
+    return allTimeSlots.map(timeSlot => {
+      const timeKey = timeSlot.toISOString();
+      const readingData = readingsByTimeSlot[timeKey];
+
+      if (readingData && readingData.values.length > 0) {
+        const sum = readingData.values.reduce((a, b) => a + b, 0);
         return {
-          time,
-          value: sum / values.length,
+          time: timeSlot,
+          value: sum / readingData.values.length,
         };
-      })
-      .sort((a, b) => a.time.getTime() - b.time.getTime());
+      } else {
+        // Return null for missing data points - frontend can handle interpolation
+        return {
+          time: timeSlot,
+          value: null,
+        };
+      }
+    }).sort((a, b) => a.time.getTime() - b.time.getTime());
+  }
+
+  // Helper method to generate time slot key
+  private getTimeSlotKey(date: Date, intervalMinutes: number): string {
+    return this.getTimeSlotStart(date, intervalMinutes).toISOString();
+  }
+
+  // Helper method to get the start of a time slot
+  private getTimeSlotStart(date: Date, intervalMinutes: number): Date {
+    const slotDate = new Date(date);
+    
+    if (intervalMinutes >= 60) {
+      // Hour-based aggregation
+      const hoursInterval = intervalMinutes / 60;
+      const hour = Math.floor(slotDate.getHours() / hoursInterval) * hoursInterval;
+      slotDate.setHours(hour, 0, 0, 0);
+    } else {
+      // Minute-based aggregation
+      const minute = Math.floor(slotDate.getMinutes() / intervalMinutes) * intervalMinutes;
+      slotDate.setMinutes(minute, 0, 0);
+    }
+    
+    return slotDate;
+  }
+
+  // Helper method to generate all time slots in a range
+  private generateTimeSlots(startDate: Date, endDate: Date, intervalMinutes: number): Date[] {
+    const slots: Date[] = [];
+    const current = this.getTimeSlotStart(new Date(startDate), intervalMinutes);
+    const end = new Date(endDate);
+
+    while (current <= end) {
+      slots.push(new Date(current));
+      current.setMinutes(current.getMinutes() + intervalMinutes);
+    }
+
+    return slots;
+  }
+
+  // Helper method for empty time slots when no data exists
+  private generateEmptyTimeSlots(startDate: Date, endDate: Date, intervalMinutes: number) {
+    return this.generateTimeSlots(startDate, endDate, intervalMinutes).map(time => ({
+      time,
+      value: null,
+    }));
   }
 
   async getSensorRealtimeData(
