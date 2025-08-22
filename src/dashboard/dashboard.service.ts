@@ -354,22 +354,11 @@ export class DashboardService {
 
   async getSensorData(
     farmId: string,
-    hours: number = 24,
-    sensorType?: string,
-    aggregationMinutes?: number,
+    hours: number,
+    sensorType: string | undefined,
+
+    aggregationMinutes: number,
   ): Promise<SensorChartData[]> {
-    let effectiveAggregationMinutes = aggregationMinutes;
-
-    if (!effectiveAggregationMinutes) {
-      if (hours <= 24) {
-        effectiveAggregationMinutes = 15;
-      } else if (hours <= 168) {
-        effectiveAggregationMinutes = 120;
-      } else {
-        effectiveAggregationMinutes = 1440;
-      }
-    }
-
     const farm = await this.farmRepository.findOne({
       where: { id: farmId },
     });
@@ -429,11 +418,12 @@ export class DashboardService {
 
         return {
           type,
+          // ใช้ค่า `aggregationMinutes` ที่ได้รับมาโดยตรง
           data: this.aggregateReadingsByTime(
             readings,
             startDate,
             endDate,
-            effectiveAggregationMinutes,
+            aggregationMinutes,
           ),
         };
       }),
