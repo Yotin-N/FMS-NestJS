@@ -10,6 +10,7 @@ import {
   buildMqttMicroserviceOptions,
   startMqttMicroservices,
 } from './mqtt/mqtt-options';
+import { buildCorsOriginDelegate } from './config/cors.config';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -28,19 +29,11 @@ async function bootstrap() {
   // Global configurations
   app.use(cookieParser());
 
-  // CORS configuration - UPDATED to allow multiple origins
-  // Get origin configuration from environment variables or use default values
-  const corsOrigin = configService.get<string>(
-    'CORS_ORIGIN',
-    'http://localhost:3000,http://localhost:3001,https://farm-management-theta.vercel.app',
-  );
-
-  // Parse multiple origins if provided as comma-separated string
-  const origins = corsOrigin.split(',').map((origin) => origin.trim());
-
   app.enableCors({
-    origin: origins.length === 1 ? origins[0] : origins,
+    origin: buildCorsOriginDelegate(configService.get<string>('CORS_ORIGIN')),
     credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   });
 
   // Global validation pipe
