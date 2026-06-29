@@ -1,10 +1,5 @@
 import { Controller, Logger, Inject, forwardRef } from '@nestjs/common';
-import {
-  MessagePattern,
-  Payload,
-  Ctx,
-  MqttContext,
-} from '@nestjs/microservices';
+import { EventPattern, Payload, Ctx, MqttContext } from '@nestjs/microservices';
 import { SensorService } from '../sensor/sensor.service';
 import { MqttService } from './mqtt.service';
 
@@ -19,35 +14,38 @@ export class MqttController {
   ) {}
 
   // Define message patterns for different MQTT topics
-  @MessagePattern('shrimp_farm/+/device/+/sensor/+')
+  @EventPattern('shrimp_farm/+/device/+/sensor/+')
   async handleFarmDeviceSensor(
     @Payload() data: any,
     @Ctx() context: MqttContext,
   ) {
     const topic = context.getTopic();
-    this.logger.debug(
-      `Received hierarchical shrimp_farm message on topic ${topic}`,
+    this.logger.log(
+      `MQTT received hierarchical topic=${topic} payload=${JSON.stringify(data)}`,
     );
     await this.mqttService.processMessage(topic, data);
   }
 
-  @MessagePattern('sensor/+')
+  @EventPattern('sensor/+')
   async handleSensor(@Payload() data: any, @Ctx() context: MqttContext) {
     const topic = context.getTopic();
-    this.logger.debug(`Received direct sensor message on topic ${topic}`);
-    this.logger.debug(`Message payload: ${JSON.stringify(data)}`);
+    this.logger.log(
+      `MQTT received direct topic=${topic} payload=${JSON.stringify(data)}`,
+    );
     await this.mqttService.processMessage(topic, data);
   }
 
-  @MessagePattern('sensors/+/+')
+  @EventPattern('sensors/+/+')
   async handleTypeSensor(@Payload() data: any, @Ctx() context: MqttContext) {
     const topic = context.getTopic();
-    this.logger.debug(`Received type-based sensor message on topic ${topic}`);
+    this.logger.log(
+      `MQTT received type topic=${topic} payload=${JSON.stringify(data)}`,
+    );
     await this.mqttService.processMessage(topic, data);
   }
 
   // Add a wildcard pattern to catch any unhandled topics
-  @MessagePattern('#')
+  @EventPattern('#')
   async handleAnyTopic(@Payload() data: any, @Ctx() context: MqttContext) {
     const topic = context.getTopic();
     // Only process if it's not one of our already-handled patterns
@@ -56,7 +54,9 @@ export class MqttController {
       !topic.startsWith('sensor/') &&
       !topic.startsWith('sensors/')
     ) {
-      this.logger.debug(`Received message on unhandled topic ${topic}`);
+      this.logger.log(
+        `MQTT received unhandled topic=${topic} payload=${JSON.stringify(data)}`,
+      );
       await this.mqttService.processMessage(topic, data);
     }
   }

@@ -291,6 +291,10 @@ export class MqttService implements OnModuleInit {
         message = message.toString();
       }
 
+      if (typeof message === 'number') {
+        return Number.isFinite(message) ? { value: message } : null;
+      }
+
       if (typeof message === 'string') {
         try {
           parsed = JSON.parse(message);
@@ -306,6 +310,10 @@ export class MqttService implements OnModuleInit {
         parsed = message;
       } else {
         return null;
+      }
+
+      if (typeof parsed === 'number') {
+        return Number.isFinite(parsed) ? { value: parsed } : null;
       }
 
       // Validate required value field

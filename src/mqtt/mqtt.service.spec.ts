@@ -11,7 +11,7 @@ type TestMqttClient = MqttClient & {
 };
 
 describe('MqttService', () => {
-  it('subscribes sensors through the MQTT client subscribe API', async () => {
+  const createClient = () => {
     const client = {
       subscribe: jest.fn(
         (_topic: string, callback: (error?: Error) => void) => {
@@ -22,6 +22,12 @@ describe('MqttService', () => {
       emit: jest.fn(),
       on: jest.fn(),
     } as unknown as TestMqttClient;
+
+    return client;
+  };
+
+  it('subscribes sensors through the MQTT client subscribe API', async () => {
+    const client = createClient();
     const sensorService = {};
     const sensorReadingService = {};
     const service = new MqttService(
@@ -59,5 +65,38 @@ describe('MqttService', () => {
       'mqtt_subscribe',
       expect.anything(),
     );
+  });
+
+  it('saves numeric MQTT payloads for subscribed sensor topics', async () => {
+    const client = createClient();
+    const sensorService = {};
+    const sensorReadingService = {
+      create: jest.fn(),
+    };
+    const service = new MqttService(
+      client,
+      sensorService as unknown as SensorService,
+      sensorReadingService as unknown as SensorReadingService,
+    );
+    const sensor = {
+      id: 'sensor-id',
+      serialNumber: 'SN0004',
+      type: SensorType.TempB,
+      deviceId: 'device-id',
+      device: {
+        farm: {
+          id: 'farm-id',
+        },
+      },
+    } as unknown as Sensor;
+
+    await service.subscribeSensor(sensor);
+    await service.processMessage('sensors/tempb/SN0004', 32);
+
+    expect(sensorReadingService.create).toHaveBeenCalledWith({
+      sensorId: 'sensor-id',
+      value: 32,
+      timestamp: expect.any(Date),
+    });
   });
 });
