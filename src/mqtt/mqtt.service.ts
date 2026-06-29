@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/await-thenable */
 /* eslint-disable no-useless-escape */
 import {
   Injectable,
@@ -7,7 +6,7 @@ import {
   Inject,
   forwardRef,
 } from '@nestjs/common';
-import { ClientProxy } from '@nestjs/microservices';
+import type { MqttClient } from 'mqtt';
 import { SensorService } from '../sensor/sensor.service';
 import {
   MqttSensorData,
@@ -22,30 +21,64 @@ export class MqttService implements OnModuleInit {
   private readonly logger = new Logger(MqttService.name);
   private readonly activeTopics = new Set<string>();
   private readonly topicToSensorMap = new Map<string, string>();
+  private readonly subscribeTimeoutMs = 3000;
 
   constructor(
-    @Inject('MQTT_CLIENT') private readonly client: ClientProxy,
+    @Inject('MQTT_CLIENT') private readonly client: MqttClient,
     private readonly sensorService: SensorService,
     @Inject(forwardRef(() => SensorReadingService))
     private readonly sensorReadingService: SensorReadingService,
   ) {}
 
-  async onModuleInit() {
-    try {
-      await this.client.connect();
+  onModuleInit() {
+    this.registerClientListeners();
+    void this.subscribeGeneralTopics().catch((error) => {
+      this.logger.error(
+        `Failed to subscribe general MQTT topics: ${error.message}`,
+      );
+    });
+    void this.subscribeToAllSensors();
+  }
+
+  private registerClientListeners() {
+    this.client.on('connect', () => {
       this.logger.log('Connected to MQTT broker');
+      void this.resubscribeActiveTopics();
+    });
 
-      // Subscribe to general wildcard patterns
-      await this.client.emit('mqtt_subscribe', { topic: 'sensor/+' });
-      await this.client.emit('mqtt_subscribe', { topic: 'sensors/+/+' });
-      await this.client.emit('mqtt_subscribe', {
-        topic: 'shrimp_farm/+/device/+/sensor/+',
-      });
+    this.client.on('reconnect', () => {
+      this.logger.warn('MQTT broker reconnecting');
+    });
 
-      this.logger.log('Subscribed to general MQTT patterns');
-      await this.subscribeToAllSensors();
+    this.client.on('close', () => {
+      this.logger.warn('MQTT broker connection closed');
+    });
+
+    this.client.on('offline', () => {
+      this.logger.warn('MQTT broker offline');
+    });
+
+    this.client.on('error', (error) => {
+      this.logger.error(`MQTT client error: ${error.message}`);
+    });
+  }
+
+  private async subscribeGeneralTopics() {
+    await Promise.all([
+      this.subscribeTopic('sensor/+'),
+      this.subscribeTopic('sensors/+/+'),
+      this.subscribeTopic('shrimp_farm/+/device/+/sensor/+'),
+    ]);
+    this.logger.log('Subscribed to general MQTT patterns');
+  }
+
+  private async resubscribeActiveTopics() {
+    try {
+      await Promise.all(
+        [...this.activeTopics].map((topic) => this.subscribeViaClient(topic)),
+      );
     } catch (error) {
-      this.logger.error(`MQTT initialization failed: ${error.message}`);
+      this.logger.error(`Failed to resubscribe MQTT topics: ${error.message}`);
     }
   }
 
@@ -113,10 +146,18 @@ export class MqttService implements OnModuleInit {
     }
   }
 
-  private async subscribeTopic(topic: string, sensorId: string) {
+  private async subscribeTopic(topic: string, sensorId?: string) {
     try {
-      await this.client.emit('mqtt_subscribe', { topic });
-      this.topicToSensorMap.set(topic, sensorId);
+      if (sensorId) {
+        this.topicToSensorMap.set(topic, sensorId);
+      }
+
+      if (this.activeTopics.has(topic)) {
+        return;
+      }
+
+      this.activeTopics.add(topic);
+      await this.subscribeViaClient(topic);
       this.logger.log(`Subscribed to topic: ${topic}`);
     } catch (error) {
       this.logger.error(
@@ -124,6 +165,35 @@ export class MqttService implements OnModuleInit {
       );
       throw error;
     }
+  }
+
+  private async subscribeViaClient(topic: string): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const timeout = setTimeout(() => {
+        settled = true;
+        this.logger.warn(
+          `MQTT subscribe timed out for topic ${topic}; it will retry on reconnect`,
+        );
+        resolve();
+      }, this.subscribeTimeoutMs);
+
+      this.client.subscribe(topic, (error) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        clearTimeout(timeout);
+
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve();
+      });
+    });
   }
 
   async processMessage(topic: string, message: any) {
@@ -299,15 +369,42 @@ export class MqttService implements OnModuleInit {
 
   async unsubscribeTopic(topic: string) {
     try {
-      await this.client.emit('mqtt_unsubscribe', { topic });
       this.activeTopics.delete(topic);
       this.topicToSensorMap.delete(topic);
+      await this.unsubscribeViaClient(topic);
       this.logger.log(`Unsubscribed from topic: ${topic}`);
     } catch (error) {
       this.logger.error(
         `Failed to unsubscribe from topic ${topic}: ${error.message}`,
       );
     }
+  }
+
+  private async unsubscribeViaClient(topic: string): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      const timeout = setTimeout(() => {
+        settled = true;
+        this.logger.warn(`MQTT unsubscribe timed out for topic ${topic}`);
+        resolve();
+      }, this.subscribeTimeoutMs);
+
+      this.client.unsubscribe(topic, (error) => {
+        if (settled) {
+          return;
+        }
+
+        settled = true;
+        clearTimeout(timeout);
+
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve();
+      });
+    });
   }
 
   // Method to generate MQTT topic for a sensor entity or DTO
@@ -323,7 +420,14 @@ export class MqttService implements OnModuleInit {
 
   // Method to handle sensor creation - subscribe to the necessary topics
   async handleSensorCreated(sensorId: string): Promise<string> {
-    return this.subscribeSensorById(sensorId);
+    const sensor = await this.sensorService.findOne(sensorId);
+    const mqttTopic = this.generateMqttTopic(sensor);
+    void this.subscribeSensor(sensor).catch((error) => {
+      this.logger.error(
+        `Failed to subscribe newly created sensor ${sensorId}: ${error.message}`,
+      );
+    });
+    return mqttTopic;
   }
 
   // Method to handle sensor updates - update subscriptions if needed
@@ -343,8 +447,13 @@ export class MqttService implements OnModuleInit {
         await this.unsubscribeTopic(oldTypeTopic);
       }
 
-      // Subscribe to current topics
-      return this.subscribeSensor(sensor);
+      const mqttTopic = this.generateMqttTopic(sensor);
+      void this.subscribeSensor(sensor).catch((error) => {
+        this.logger.error(
+          `Failed to resubscribe updated sensor ${sensorId}: ${error.message}`,
+        );
+      });
+      return mqttTopic;
     } catch (error) {
       this.logger.error(
         `Failed to update subscriptions for sensor ${sensorId}: ${error.message}`,

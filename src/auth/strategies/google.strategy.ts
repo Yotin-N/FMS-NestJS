@@ -6,13 +6,17 @@ import {
 } from 'passport-google-oauth20';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import {
+  getGoogleOAuthClientId,
+  getGoogleOAuthClientSecret,
+} from '../google-oauth.config';
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(private configService: ConfigService) {
     super({
-      clientID: configService.get<string>('GOOGLE_CLIENT_ID'),
-      clientSecret: configService.get<string>('GOOGLE_CLIENT_SECRET'),
+      clientID: getGoogleOAuthClientId(configService),
+      clientSecret: getGoogleOAuthClientSecret(configService),
       callbackURL:
         configService.get<string>('GOOGLE_CALLBACK_URL') ||
         'http://localhost:3000/api/auth/google/callback',
